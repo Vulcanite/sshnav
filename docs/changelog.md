@@ -9,15 +9,25 @@ This changelog records user-visible behavior. It is kept unversioned with the re
 
 ### Added
 
+- Optional `--rsync` transfers with archive, compression, partial-transfer, progress, delta, protected remote arguments, and the saved SSH transport settings.
+
+## 0.1.1
+
+### Added
+
+- Generated shell completions for Bash, Elvish, Fish, PowerShell, and Zsh.
+- A doctor check that detects stale or hand-edited generated SSH configuration.
+
+## 0.1.0
+
+### Added
+
 - Native `sshnav send` and `sshnav receive` file transfers through `scp`.
 - Short `-r` and long `--recursive` flags, with options shown after positional paths.
 - Saved-alias proxy jump expansion for SSH, SCP, and diagnostics, including nested routes and IPv6-safe targets.
 - Host duplication through `sshnav host duplicate` and <kbd>Ctrl</kbd>+<kbd>D</kbd> in the picker.
 - Jump-host editing and completion in the interactive host form.
 - Independent encrypted-key records for duplicated hosts.
-- Optional `--rsync` transfers with archive, compression, partial-transfer, progress, delta, protected remote arguments, and the saved SSH transport settings.
-- Generated shell completions for Bash, Elvish, Fish, PowerShell, and Zsh.
-- A doctor check that detects stale or hand-edited generated SSH configuration.
 
 ### Changed
 
