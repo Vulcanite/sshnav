@@ -107,6 +107,8 @@ npm run docs:start
 
 Pull requests verify the production build. Pushes to `main` or `master` deploy it through GitHub Pages after Pages is configured to use **GitHub Actions** as its source.
 
+The release-triggered changelog workflow requires a fine-grained personal access token with the **Copilot Requests** permission stored as the `COPILOT_GITHUB_TOKEN` repository secret.
+
 ## License
 
 Licensed under the terms in [LICENSE](LICENSE).
