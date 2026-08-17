@@ -42,7 +42,7 @@ Architecture: $ARCH
 Maintainer: $MAINTAINER
 Depends: openssh-client
 Suggests: mosh
-Homepage: https://github.com/your-org/sshnav
+Homepage: https://github.com/Vulcanite/sshnav
 Description: Fast local SSH inventory navigator and launcher
  sshnav is a CLI-first SSH inventory, picker, launcher, and
  OpenSSH interop tool for Linux and macOS terminals.

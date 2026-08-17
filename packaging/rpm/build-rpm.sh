@@ -44,7 +44,7 @@ Version: %{sshnav_version}
 Release: 1%{?dist}
 Summary: Fast local SSH inventory navigator and launcher
 License: MIT
-URL: https://github.com/your-org/sshnav
+URL: https://github.com/Vulcanite/sshnav
 Requires: openssh-clients
 
 %description
