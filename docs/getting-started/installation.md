@@ -47,3 +47,7 @@ sshnav doctor
 ```
 
 The doctor checks the database location, permissions, OpenSSH programs, generated config, and private-key sources. Fix required failures before importing sensitive identities.
+
+## Shell completions
+
+Generate completion code for your shell with `sshnav completions <SHELL>`. See the [CLI reference](../reference/cli.md#shell-completions) for examples.

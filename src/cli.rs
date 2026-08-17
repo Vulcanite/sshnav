@@ -12,14 +12,25 @@ use crate::storage::{SECRET_PRIVATE_KEY, Store};
 use crate::term;
 use anyhow::{Context, Result, bail};
 use clap::error::ErrorKind;
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, CommandFactory, Parser, Subcommand};
+use clap_complete::{Shell, generate};
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 const COMMANDS: &[&str] = &[
-    "add", "pick", "connect", "send", "receive", "host", "import", "generate", "doctor", "migrate",
+    "add",
+    "pick",
+    "connect",
+    "send",
+    "receive",
+    "host",
+    "import",
+    "generate",
+    "doctor",
+    "migrate",
+    "completions",
 ];
 
 #[derive(Debug, Parser)]
@@ -58,6 +69,8 @@ enum Command {
     Migrate(MigrateArgs),
     /// Check environment health or diagnose a host chain.
     Doctor(DoctorArgs),
+    /// Generate shell completion code.
+    Completions(CompletionsArgs),
 }
 
 #[derive(Debug, Args)]
@@ -103,6 +116,13 @@ struct ReceiveArgs {
 #[derive(Debug, Args)]
 struct DoctorArgs {
     alias: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct CompletionsArgs {
+    /// Shell to generate completion code for.
+    #[arg(value_enum)]
+    shell: Shell,
 }
 
 #[derive(Debug, Subcommand)]
@@ -239,6 +259,10 @@ pub fn run() -> Result<i32> {
         Ok(cli) => cli,
         Err(err) => return handle_parse_error(err),
     };
+    if let Some(Command::Completions(args)) = &cli.command {
+        generate(args.shell, &mut Cli::command(), "sshnav", &mut io::stdout());
+        return Ok(0);
+    }
     let paths = AppPaths::discover()?;
     let mut store = Store::open(&paths)?;
 
@@ -254,6 +278,7 @@ pub fn run() -> Result<i32> {
         Some(Command::Generate(args)) => run_generate(&paths, &store, args),
         Some(Command::Migrate(args)) => run_migrate_command(&paths, &mut store, args),
         Some(Command::Doctor(args)) => run_doctor(&paths, &store, args),
+        Some(Command::Completions(_)) => unreachable!(),
     }
 }
 
@@ -1084,6 +1109,15 @@ mod tests {
             panic!("expected send command");
         };
         assert!(args.recursive);
+    }
+
+    #[test]
+    fn parses_completion_shell() {
+        let cli = Cli::try_parse_from(["sshnav", "completions", "bash"]).unwrap();
+        let Some(Command::Completions(args)) = cli.command else {
+            panic!("expected completions command");
+        };
+        assert_eq!(args.shell, Shell::Bash);
     }
 
     #[test]

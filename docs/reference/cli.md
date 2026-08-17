@@ -104,6 +104,20 @@ sshnav doctor [ALIAS]
 
 Without an alias, check local environment health. With an alias, resolve and probe its jump chain and target.
 
+## Shell completions
+
+```text
+sshnav completions <SHELL>
+```
+
+Generate completion code for Bash, Elvish, Fish, PowerShell, or Zsh. For example:
+
+```bash
+sshnav completions bash > ~/.local/share/bash-completion/completions/sshnav
+sshnav completions fish > ~/.config/fish/completions/sshnav.fish
+sshnav completions zsh > ~/.zfunc/_sshnav
+```
+
 ## Global options
 
 | Option | Meaning |
