@@ -22,7 +22,7 @@ pub struct Check {
 pub fn run(paths: &AppPaths, store: &Store) -> Vec<Check> {
     let mut checks = vec![
         check_exists("database", &paths.db),
-        check_optional_exists("generated_config", &paths.generated_config),
+        check_generated_config(paths, store),
         check_ssh(),
         check_include(paths),
         check_owner_only_permissions("database_permissions", &paths.db),
@@ -58,19 +58,40 @@ fn check_exists(name: &'static str, path: &std::path::Path) -> Check {
     }
 }
 
-fn check_optional_exists(name: &'static str, path: &std::path::Path) -> Check {
-    if path.exists() {
-        Check {
+fn check_generated_config(paths: &AppPaths, store: &Store) -> Check {
+    let path = &paths.generated_config;
+    if !path.exists() {
+        return Check {
             status: Status::Ok,
-            name,
-            message: path.display().to_string(),
-        }
-    } else {
-        Check {
-            status: Status::Ok,
-            name,
+            name: "generated_config",
             message: format!("not present: {}", path.display()),
-        }
+        };
+    }
+
+    let result = fs::read_to_string(path).and_then(|actual| {
+        let inventory = store.load_inventory().map_err(std::io::Error::other)?;
+        let expected = generator::render(&inventory).map_err(std::io::Error::other)?;
+        Ok(actual == expected)
+    });
+    match result {
+        Ok(true) => Check {
+            status: Status::Ok,
+            name: "generated_config",
+            message: format!("matches database: {}", path.display()),
+        },
+        Ok(false) => Check {
+            status: Status::Warn,
+            name: "generated_config",
+            message: format!(
+                "stale or modified; run `sshnav generate`: {}",
+                path.display()
+            ),
+        },
+        Err(err) => Check {
+            status: Status::Warn,
+            name: "generated_config",
+            message: format!("could not compare {}: {err}", path.display()),
+        },
     }
 }
 
@@ -249,4 +270,35 @@ pub fn run_and_print(paths: &AppPaths, store: &Store) -> Result<i32> {
     let checks = run(paths, store);
     print(&checks);
     Ok(if has_warnings(&checks) { 1 } else { 0 })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn paths(root: &std::path::Path) -> AppPaths {
+        AppPaths {
+            db: root.join("data/sshnav.db"),
+            secret_key: root.join("data/secret.key"),
+            runtime_dir: root.join("runtime"),
+            generated_config: root.join(".ssh/sshnav.generated"),
+            ssh_config: root.join(".ssh/config"),
+        }
+    }
+
+    #[test]
+    fn detects_generated_config_drift() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = paths(dir.path());
+        let store = Store::open(&paths).unwrap();
+        let inventory = store.load_inventory().unwrap();
+        generator::write_generated(&inventory, &paths.generated_config).unwrap();
+
+        assert_eq!(check_generated_config(&paths, &store).status, Status::Ok);
+
+        fs::write(&paths.generated_config, "# hand edited\n").unwrap();
+        let check = check_generated_config(&paths, &store);
+        assert_eq!(check.status, Status::Warn);
+        assert!(check.message.contains("sshnav generate"));
+    }
 }

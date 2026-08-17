@@ -9,7 +9,7 @@ description: Use sshnav doctor, reachability checks, and bounded reconnect behav
 sshnav doctor
 ```
 
-The report checks application paths, database permissions, local-key permissions, `ssh`, `scp`, optional `mosh`, generated configuration, installed include state, and identity-source health.
+The report checks application paths, database permissions, `ssh`, generated-configuration drift, installed include state, and identity-source health. If `sshnav.generated` no longer matches the database, regenerate it with `sshnav generate`.
 
 ## Host chain
 
