@@ -112,3 +112,7 @@ The release-triggered changelog workflow requires a fine-grained personal access
 ## License
 
 Licensed under the terms in [LICENSE](LICENSE).
+
+## AI-assisted development
+
+This project is developed with assistance from [GPT-5.6 Sol](https://developers.openai.com/api/docs/models/gpt-5.6-sol), using OpenAI Codex as the coding harness. Codex assists with implementation, testing, review, documentation, and release engineering; project direction, final decisions, and responsibility remain with the maintainer.
