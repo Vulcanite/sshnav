@@ -3,3 +3,6 @@
 graphify-out/
 .codex/
 .opencode/
+/node_modules
+/build
+/.docusaurus

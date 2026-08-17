@@ -96,6 +96,17 @@ packaging/rpm/build-rpm.sh
 
 Packages are written to `dist/`. The release workflow builds the same packages on Ubuntu and uploads them as workflow artifacts. On `v*` tags, it also creates or updates the matching GitHub Release and uploads the `.deb` and `.rpm`.
 
+## Documentation
+
+The Docusaurus website lives in `docs/` with its theme and landing page under `src/`. Preview it locally with:
+
+```sh
+npm ci
+npm run docs:start
+```
+
+Pull requests verify the production build. Pushes to `main` or `master` deploy it through GitHub Pages after Pages is configured to use **GitHub Actions** as its source.
+
 ## License
 
 Licensed under the terms in [LICENSE](LICENSE).

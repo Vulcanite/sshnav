@@ -1,0 +1,22 @@
+flowchart LR
+    U["User"] --> C{"CLI or TUI"}
+    C -->|"add / edit / duplicate"| I["Inventory validation"]
+    I --> DB[("SQLite inventory")]
+    C -->|"connect / send / receive"| L["Load host by alias"]
+    DB --> L
+    L --> J["Resolve nested jump aliases"]
+    J -->|"cycle / invalid"| E["Stop with contextual error"]
+    J --> A{"Encrypted target key?"}
+    A -->|"No"| O["OpenSSH defaults or source path"]
+    A -->|"Yes"| S[("Encrypted secret blob")]
+    S --> D["Argon2id + XChaCha20 decrypt"]
+    D --> T["0600 temporary identity"]
+    O --> R["Build argv without a shell"]
+    T --> R
+    R -->|"connect"| SSH["Native ssh process"]
+    R -->|"transfer"| SCP["Native scp process"]
+    SSH --> K["known_hosts + remote server"]
+    SCP --> K
+    SSH --> X["Child exits"]
+    SCP --> X
+    X --> Z["Temporary identity deleted"]

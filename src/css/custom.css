@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+:root {
+  --ifm-color-primary: #d65f3b;
+  --ifm-color-primary-dark: #c84f2c;
+  --ifm-color-primary-darker: #bd4a29;
+  --ifm-color-primary-darkest: #9c3d22;
+  --ifm-color-primary-light: #de7454;
+  --ifm-color-primary-lighter: #e17e60;
+  --ifm-color-primary-lightest: #eaa58f;
+  --ifm-background-color: #f4f1e9;
+  --ifm-background-surface-color: #ebe7dc;
+  --ifm-font-color-base: #171a19;
+  --ifm-font-family-base: 'Archivo', system-ui, sans-serif;
+  --ifm-heading-font-family: 'Archivo', system-ui, sans-serif;
+  --ifm-heading-font-weight: 800;
+  --ifm-code-font-size: 92%;
+  --ifm-global-radius: 0;
+  --ifm-navbar-shadow: none;
+  --site-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --site-muted: #5e6764;
+  --site-rule: #cdc8bb;
+  --site-rule-strong: #9d988e;
+  --site-grid: rgb(23 26 25 / 5%);
+  --site-surface: #ebe7dc;
+  --site-terminal: #111313;
+  --site-shadow-hard: #b9b3a6;
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #e7704b;
+  --ifm-color-primary-dark: #e35b31;
+  --ifm-color-primary-darker: #e15025;
+  --ifm-color-primary-darkest: #bc3d1a;
+  --ifm-color-primary-light: #eb8565;
+  --ifm-color-primary-lighter: #ed9072;
+  --ifm-color-primary-lightest: #f3b7a3;
+  --ifm-background-color: #0d0f0f;
+  --ifm-background-surface-color: #131615;
+  --ifm-font-color-base: #f2eee6;
+  --site-muted: #99a29f;
+  --site-rule: #292d2c;
+  --site-rule-strong: #444a48;
+  --site-grid: rgb(255 255 255 / 3.5%);
+  --site-surface: #131615;
+  --site-terminal: #090b0b;
+  --site-shadow-hard: #252a28;
+}
+
+html { scroll-behavior: smooth; }
+body { font-feature-settings: 'ss02' 1; }
+::selection { color: #111313; background: var(--ifm-color-primary); }
+
+.navbar {
+  border-bottom: 1px solid var(--site-rule);
+  background: color-mix(in srgb, var(--ifm-background-color) 94%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.navbar__title { font-family: var(--site-mono); font-size: 0.92rem; letter-spacing: -0.03em; }
+.navbar__link { font-family: var(--site-mono); font-size: 0.73rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.navbar__logo { width: 29px; height: 29px; }
+.navbar-sidebar { background: var(--ifm-background-color); }
+
+.theme-doc-sidebar-container { border-right-color: var(--site-rule) !important; }
+.menu__link, .table-of-contents__link { font-size: 0.86rem; }
+.menu__link--active { border-left: 2px solid var(--ifm-color-primary); border-radius: 0; }
+.theme-doc-markdown { max-width: 800px; }
+.theme-doc-markdown h1 { font-size: clamp(2.6rem, 6vw, 4.8rem); letter-spacing: -0.06em; }
+.theme-doc-markdown h2 { margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--site-rule); letter-spacing: -0.035em; }
+.theme-doc-markdown h3 { letter-spacing: -0.02em; }
+.theme-doc-markdown p, .theme-doc-markdown li { line-height: 1.75; }
+.theme-doc-markdown code { border: 1px solid var(--site-rule); border-radius: 0; }
+.theme-code-block { border: 1px solid var(--site-rule); box-shadow: 5px 5px 0 var(--site-shadow-hard); }
+.alert { border-width: 1px 1px 1px 4px; border-radius: 0; }
+.pagination-nav__link { border-color: var(--site-rule); border-radius: 0; }
+.pagination-nav__link:hover { box-shadow: 4px 4px 0 var(--site-shadow-hard); }
+
+.footer { border-top: 1px solid #2b302e; background: #090b0b; }
+.footer__title { color: #f2eee6; font-family: var(--site-mono); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.footer__link-item, .footer__copyright { color: #9ca5a2; }
+
+.diagram-frame {
+  margin: 2rem 0;
+  padding: 1rem;
+  border: 1px solid var(--site-rule);
+  background: #f8f6f0;
+  box-shadow: 8px 8px 0 var(--site-shadow-hard);
+}
+
+.diagram-frame img { display: block; width: 100%; }
+.diagram-caption { margin-top: 0.8rem; color: var(--site-muted); font: 0.72rem/1.5 var(--site-mono); }
+.ascii-doc { overflow-x: auto; color: var(--ifm-color-primary); font-family: var(--site-mono); font-size: clamp(0.44rem, 1.2vw, 0.72rem); font-weight: 700; line-height: 1.2; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}

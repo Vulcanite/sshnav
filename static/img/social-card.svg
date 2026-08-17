@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0d0f0f"/>
+  <path d="M0 80h1200M0 550h1200" stroke="#292d2c" stroke-width="2"/>
+  <path d="M96 211l92 104-92 104" fill="none" stroke="#e7704b" stroke-width="28"/>
+  <path d="M225 421h120" stroke="#f3efe7" stroke-width="24"/>
+  <text x="410" y="300" fill="#f3efe7" font-family="monospace" font-size="112" font-weight="700">sshnav</text>
+  <text x="416" y="370" fill="#9ba5a2" font-family="monospace" font-size="30">LOCAL SSH INVENTORY / NAVIGATOR / LAUNCHER</text>
+  <circle cx="1080" cy="80" r="8" fill="#e7704b"/>
+</svg>
