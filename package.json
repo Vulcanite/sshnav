@@ -1,6 +1,6 @@
 {
   "name": "sshnav-docs",
-  "version": "0.20.2",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "docs:start": "docusaurus start",

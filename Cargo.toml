@@ -1,6 +1,6 @@
 [package]
 name = "sshnav"
-version = "0.20.2"
+version = "0.1.0"
 edition = "2024"
 license = "MIT"
 description = "A fast local SSH inventory navigator and launcher."
