@@ -5,7 +5,7 @@ description: User-visible changes in each sshnav release.
 
 This changelog records user-visible behavior. It is kept unversioned with the rest of the documentation; each release is a section on this page.
 
-## 0.1.0
+## 0.1.2
 
 ### Added
 
@@ -15,6 +15,9 @@ This changelog records user-visible behavior. It is kept unversioned with the re
 - Host duplication through `sshnav host duplicate` and <kbd>Ctrl</kbd>+<kbd>D</kbd> in the picker.
 - Jump-host editing and completion in the interactive host form.
 - Independent encrypted-key records for duplicated hosts.
+- Optional `--rsync` transfers with archive, compression, partial-transfer, progress, delta, protected remote arguments, and the saved SSH transport settings.
+- Generated shell completions for Bash, Elvish, Fish, PowerShell, and Zsh.
+- A doctor check that detects stale or hand-edited generated SSH configuration.
 
 ### Changed
 
@@ -22,6 +25,7 @@ This changelog records user-visible behavior. It is kept unversioned with the re
 - Mosh connections explicitly reject proxy jumps.
 - Local directory sends require recursive mode.
 - Remote transfer paths containing control characters are rejected.
+- Imported SSH directives that can execute commands are commented out in generated configuration.
 
 ---
 
