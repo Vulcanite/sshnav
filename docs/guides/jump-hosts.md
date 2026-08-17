@@ -11,7 +11,7 @@ sshnav host edit prod --proxy-jump bastion
 sshnav connect prod
 ```
 
-sshnav expands the alias to its saved user, hostname, and non-default port before passing `-J` to SSH or SCP. IPv6 hostnames are bracketed safely.
+sshnav expands the alias to its saved user, hostname, and non-default port before passing `-J` to SSH, SCP, or rsync's SSH transport. IPv6 hostnames are bracketed safely.
 
 ## Nested routes
 

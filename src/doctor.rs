@@ -24,6 +24,7 @@ pub fn run(paths: &AppPaths, store: &Store) -> Vec<Check> {
         check_exists("database", &paths.db),
         check_generated_config(paths, store),
         check_ssh(),
+        check_rsync(),
         check_include(paths),
         check_owner_only_permissions("database_permissions", &paths.db),
         check_optional_not_writable("ssh_config_permissions", &paths.ssh_config),
@@ -106,6 +107,21 @@ fn check_ssh() -> Check {
             status: Status::Warn,
             name: "ssh_binary",
             message: format!("ssh not available: {err}"),
+        },
+    }
+}
+
+fn check_rsync() -> Check {
+    match Command::new("rsync").arg("--version").output() {
+        Ok(_) => Check {
+            status: Status::Ok,
+            name: "rsync_binary",
+            message: "rsync is available".into(),
+        },
+        Err(err) => Check {
+            status: Status::Ok,
+            name: "rsync_binary",
+            message: format!("optional rsync not available: {err}"),
         },
     }
 }

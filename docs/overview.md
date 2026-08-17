@@ -16,7 +16,7 @@ import packageJson from '@site/package.json';
 
 Current release: <code>v{packageJson.version}</code>
 
-sshnav is a local SSH inventory, searchable terminal picker, connection launcher, and file-transfer frontend. It stores the details that are easy to forget—aliases, users, ports, jump routes, tags, forwards, options, and identity metadata—then launches native `ssh` or `scp` directly.
+sshnav is a local SSH inventory, searchable terminal picker, connection launcher, and file-transfer frontend. It stores the details that are easy to forget—aliases, users, ports, jump routes, tags, forwards, options, and identity metadata—then launches native `ssh`, `scp`, or optional `rsync` directly.
 
 ## What sshnav owns
 
@@ -30,7 +30,7 @@ sshnav is a local SSH inventory, searchable terminal picker, connection launcher
 - The SSH protocol and authentication exchange.
 - Host-key verification and `known_hosts`.
 - Password prompts, SSH agents, and agent forwarding.
-- Network transport for SSH and SCP.
+- Network transport for SSH, SCP, and rsync.
 
 :::tip Start here
 Install sshnav, add one host, and open the picker with the [three-minute quickstart](./getting-started/quickstart.md).

@@ -14,7 +14,7 @@ const asciiLogo = String.raw`███████ ██████  ██   
 const features = [
   ['01', 'Find', 'Fuzzy-search aliases, groups, users, hosts, and tags from one keyboard-first picker.'],
   ['02', 'Connect', 'Launch native OpenSSH with saved ports, forwards, options, jump chains, and encrypted identities.'],
-  ['03', 'Transfer', 'Send and receive files through native scp without rebuilding connection arguments by hand.'],
+  ['03', 'Transfer', 'Send and receive files through native scp or resumable rsync without rebuilding connection arguments by hand.'],
 ];
 
 function Homepage(): ReactNode {

@@ -37,7 +37,7 @@ The latter refuses to run if no encrypted copy exists.
 
 ## Process lifetime
 
-For SSH or SCP, sshnav decrypts the stored identity into a `0600` temporary file inside its private runtime directory. The temporary file object remains alive until the child process exits and is then deleted.
+For SSH, SCP, or rsync, sshnav decrypts the stored identity into a `0600` temporary file inside its private runtime directory. The temporary file object remains alive until the child process exits and is then deleted.
 
 :::danger Trust boundary
 Encryption protects against some disk, backup, and cross-account exposure. It cannot protect keys from an attacker who already controls the same operating-system user and can read both the database and local encryption key.

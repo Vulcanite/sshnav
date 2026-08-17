@@ -15,9 +15,9 @@ sshnav is a local, single-user SSH inventory and launcher. It assumes the operat
 
 ## Command execution
 
-SSH and SCP argument vectors are passed directly to `Command`; they are never joined into shell strings. Hostnames, aliases, and remote transfer paths are validated, and remote paths containing control characters are rejected.
+SSH, SCP, and rsync argument vectors are passed directly to `Command`; sshnav never launches a shell. Rsync's required `--rsh` value is serialized with rsync's own quoting rules, while protected arguments keep remote paths out of the remote shell command. Hostnames, aliases, and remote transfer paths are validated, and remote paths containing control characters are rejected.
 
-Only a constrained allowlist of imported OpenSSH options is forwarded to direct SSH and SCP commands. sshnav supplies strict host-key settings and uses the user's normal `known_hosts` file.
+Only a constrained allowlist of imported OpenSSH options is forwarded to direct SSH, SCP, and rsync transport commands. sshnav supplies strict host-key settings and uses the user's normal `known_hosts` file.
 
 The optional `sshnav generate` include file is written into the user's real `~/.ssh/config`, so it holds imported options to a separate rule: any directive that can execute a command as a side effect of connecting — `ProxyCommand`, `LocalCommand`, `PermitLocalCommand`, `RemoteCommand`, `KnownHostsCommand`, `Match`, `Include` — is written back only as a comment, never as a live directive, regardless of where the option came from.
 

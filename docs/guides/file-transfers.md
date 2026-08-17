@@ -1,9 +1,9 @@
 ---
 title: File transfers
-description: Send and receive files through native SCP using saved host settings.
+description: Send and receive files through native SCP or rsync using saved host settings.
 ---
 
-sshnav launches `scp` directly and reuses the selected host's hostname, user, port, jump chain, safe options, host-key policy, and encrypted identity lifecycle.
+sshnav uses `scp` by default and reuses the selected host's hostname, user, port, jump chain, safe options, host-key policy, and encrypted identity lifecycle.
 
 ## Send
 
@@ -38,8 +38,19 @@ sshnav send prod ./public /srv/www -r
 sshnav receive prod /var/log/myapp ./logs --recursive
 ```
 
-A local directory source is rejected without the recursive flag. Missing local sources and control characters in remote paths are rejected before launching SCP.
+A local directory source is rejected without the recursive flag. Missing local sources and control characters in remote paths are rejected before launching either backend.
 
-## Native SCP behavior
+## Resumable rsync transfers
 
-Destinations follow normal SCP semantics: they can be existing directories or renamed file paths. Existing files follow SCP's overwrite behavior. Transfers run once without application-level retry or resume.
+Add `--rsync` after the paths to use archive mode with compression, partial-transfer retention, progress output, and delta transfer:
+
+```bash
+sshnav send prod ./public /srv/www -r --rsync
+sshnav receive prod /var/log/myapp ./logs -r --rsync
+```
+
+rsync must be installed on both the local and remote machines. sshnav passes protected path arguments and constructs rsync's SSH transport from the same saved identity, port, jump route, and host-key settings used by SCP.
+
+## Native transfer behavior
+
+Destinations follow the selected backend's native semantics: they can be existing directories or renamed file paths. SCP transfers run once without application-level retry or resume; rsync provides its native partial and delta-transfer behavior.

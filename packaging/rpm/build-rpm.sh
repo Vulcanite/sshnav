@@ -46,6 +46,7 @@ Summary: Fast local SSH inventory navigator and launcher
 License: MIT
 URL: https://github.com/Vulcanite/sshnav
 Requires: openssh-clients
+Suggests: rsync
 
 %description
 sshnav is a CLI-first SSH inventory, picker, launcher, recorder, and

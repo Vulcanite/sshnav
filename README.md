@@ -37,7 +37,7 @@ sshnav add
 - Encrypted imported private-key storage using an owner-only local key file, suitable for headless terminals.
 - Host chain diagnostics via `sshnav doctor <alias>`, including proxy jump hops.
 - Direct launch via OpenSSH or mosh-style templates using argv construction, not shell strings.
-- Native `scp` send and receive commands using each host's saved SSH settings and authentication.
+- Native `scp` send and receive commands, with optional resumable `rsync`, using each host's saved SSH settings and authentication.
 - SSH keepalives, strict host-key checking, and an opt-in per-host reconnect policy (three bounded retries after a live session drops).
 - `sshnav doctor` health checks for paths, OpenSSH availability, generated config/include status, and file permissions.
 
@@ -46,8 +46,8 @@ Useful commands:
 ```sh
 sshnav pick [query]
 sshnav connect <alias>
-sshnav send <alias> <local-source> [remote-destination] [-r|--recursive]
-sshnav receive <alias> <remote-source> [local-destination] [-r|--recursive]
+sshnav send <alias> <local-source> [remote-destination] [-r|--recursive] [--rsync]
+sshnav receive <alias> <remote-source> [local-destination] [-r|--recursive] [--rsync]
 sshnav host list [--json]
 sshnav host edit <alias> [flags...]
 sshnav host edit <alias> --proxy-jump <saved-alias>
@@ -63,9 +63,9 @@ sshnav generate [--install-include] [--yes]
 sshnav doctor [alias]
 ```
 
-`send` defaults to the remote home directory (`.`), while `receive` defaults to the current local directory (`.`). Add `-r` or `--recursive` when transferring a directory; source and destination paths otherwise follow normal `scp` behavior, including renamed file destinations.
+`send` defaults to the remote home directory (`.`), while `receive` defaults to the current local directory (`.`). Add `-r` or `--recursive` when transferring a directory. SCP is the default backend; add `--rsync` for native archive, compression, partial-transfer, progress, and delta behavior when rsync is installed on both machines.
 
-`--proxy-jump` accepts either a normal OpenSSH `ProxyJump` value or a saved sshnav alias. Saved aliases are expanded to their hostname, user, and port for SSH and SCP; nested saved aliases are expanded in order. Jump hosts use OpenSSH's normal authentication (agent or SSH config). Mosh connections do not support proxy jumps.
+`--proxy-jump` accepts either a normal OpenSSH `ProxyJump` value or a saved sshnav alias. Saved aliases are expanded to their hostname, user, and port for SSH, SCP, and rsync; nested saved aliases are expanded in order. Jump hosts use OpenSSH's normal authentication (agent or SSH config). Mosh connections do not support proxy jumps.
 
 `host duplicate` copies every saved host setting and gives the copy its own encrypted-key record. In the picker, select a host and press `Ctrl-D` to open a prefilled duplicate form before saving.
 
@@ -78,7 +78,7 @@ sshnav doctor [alias]
 
 ## No Telemetry
 
-`sshnav` makes no network calls except the SSH, SCP, or mosh processes it launches on your behalf.
+`sshnav` makes no network calls except the SSH, SCP, rsync, or mosh processes it launches on your behalf.
 
 ## Security
 

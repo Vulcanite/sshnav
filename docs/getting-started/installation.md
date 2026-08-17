@@ -6,11 +6,12 @@ description: Install sshnav from source or a native Linux package.
 import CodeBlock from '@theme/CodeBlock';
 import packageJson from '@site/package.json';
 
-sshnav runs on Linux and macOS terminals. Connections use the system `ssh` and file transfers use `scp`, both provided by OpenSSH.
+sshnav runs on Linux and macOS terminals. Connections use the system `ssh`; transfers use OpenSSH `scp` by default or optional `rsync`.
 
 ## Requirements
 
 - OpenSSH client (`ssh` and `scp`).
+- Optional: `rsync` on both machines for `--rsync` transfers.
 - A terminal with interactive TTY support for the picker and forms.
 - Rust only when installing from source.
 - Optional: `mosh` for hosts using the mosh template.
@@ -32,7 +33,7 @@ Download the `.deb` from the [latest GitHub release](https://github.com/Vulcanit
 
 <CodeBlock language="bash">{`sudo apt install ./sshnav_${packageJson.version}_amd64.deb`}</CodeBlock>
 
-The package declares `openssh-client` as a dependency and suggests `mosh`.
+The package declares `openssh-client` as a dependency and suggests `mosh` and `rsync`.
 
 ## RPM package
 

@@ -96,6 +96,9 @@ struct SendArgs {
     /// Copy directories recursively.
     #[arg(short = 'r', long)]
     recursive: bool,
+    /// Use rsync with archive, compression, partial, and progress support.
+    #[arg(long)]
+    rsync: bool,
 }
 
 #[derive(Debug, Args)]
@@ -111,6 +114,9 @@ struct ReceiveArgs {
     /// Copy directories recursively.
     #[arg(short = 'r', long)]
     recursive: bool,
+    /// Use rsync with archive, compression, partial, and progress support.
+    #[arg(long)]
+    rsync: bool,
 }
 
 #[derive(Debug, Args)]
@@ -333,7 +339,10 @@ fn run_send(paths: &AppPaths, store: &Store, args: SendArgs) -> Result<i32> {
         &args.alias,
         &args.local_source,
         &args.remote_destination,
-        args.recursive,
+        runner::TransferOptions {
+            recursive: args.recursive,
+            rsync: args.rsync,
+        },
     )
 }
 
@@ -349,7 +358,10 @@ fn run_receive(paths: &AppPaths, store: &Store, args: ReceiveArgs) -> Result<i32
         &args.alias,
         &args.remote_source,
         &args.local_destination,
-        args.recursive,
+        runner::TransferOptions {
+            recursive: args.recursive,
+            rsync: args.rsync,
+        },
     )
 }
 
@@ -1079,6 +1091,7 @@ mod tests {
         };
         assert_eq!(args.remote_destination, ".");
         assert!(!args.recursive);
+        assert!(!args.rsync);
 
         let receive_default =
             Cli::try_parse_from(["sshnav", "receive", "prod", "/var/log/app.log"]).unwrap();
@@ -1087,6 +1100,7 @@ mod tests {
         };
         assert_eq!(args.local_destination, PathBuf::from("."));
         assert!(!args.recursive);
+        assert!(!args.rsync);
 
         let receive = Cli::try_parse_from([
             "sshnav",
@@ -1109,6 +1123,20 @@ mod tests {
             panic!("expected send command");
         };
         assert!(args.recursive);
+
+        let rsync = Cli::try_parse_from([
+            "sshnav",
+            "send",
+            "prod",
+            "report.csv",
+            "/srv/report.csv",
+            "--rsync",
+        ])
+        .unwrap();
+        let Some(Command::Send(args)) = rsync.command else {
+            panic!("expected send command");
+        };
+        assert!(args.rsync);
     }
 
     #[test]
@@ -1137,6 +1165,7 @@ mod tests {
         assert!(help.contains("Saved sshnav host alias"));
         assert!(help.contains("Local file or directory to copy"));
         assert!(help.contains("-r, --recursive"));
+        assert!(help.contains("--rsync"));
     }
 
     #[test]

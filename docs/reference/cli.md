@@ -34,7 +34,7 @@ sshnav receive <ALIAS> <REMOTE_SOURCE> [LOCAL_DESTINATION] [OPTIONS]
 | `REMOTE_DESTINATION` | Remote directory or renamed path | `.` |
 | `LOCAL_DESTINATION` | Local directory or renamed path | `.` |
 
-`-r, --recursive` enables directory copying.
+`-r, --recursive` enables directory copying. `--rsync` switches from the default `scp` backend to `rsync -avzP`, with protected remote arguments; rsync must be installed locally and remotely.
 
 ## Host management
 
@@ -128,6 +128,6 @@ sshnav completions zsh > ~/.zfunc/_sshnav
 ## Exit behavior
 
 - Parse errors return `2`.
-- Local validation and application errors are reported without invoking SSH/SCP.
+- Local validation and application errors are reported without invoking SSH, SCP, or rsync.
 - Connections and transfers propagate the native child's exit status where available.
 - A child terminated without an exit code maps to `1`.

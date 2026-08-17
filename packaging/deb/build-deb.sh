@@ -41,7 +41,7 @@ Priority: optional
 Architecture: $ARCH
 Maintainer: $MAINTAINER
 Depends: openssh-client
-Suggests: mosh
+Suggests: mosh, rsync
 Homepage: https://github.com/Vulcanite/sshnav
 Description: Fast local SSH inventory navigator and launcher
  sshnav is a CLI-first SSH inventory, picker, launcher, and
