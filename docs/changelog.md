@@ -5,6 +5,13 @@ description: User-visible changes in each sshnav release.
 
 This changelog records user-visible behavior. It is kept unversioned with the rest of the documentation; each release is a section on this page.
 
+## 0.1.1
+
+### Added
+
+- Generated shell completions for Bash, Elvish, Fish, PowerShell, and Zsh.
+- A doctor check that detects stale or hand-edited generated SSH configuration.
+
 ## 0.1.0
 
 ### Added
