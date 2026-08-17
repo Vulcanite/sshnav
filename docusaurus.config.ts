@@ -1,8 +1,9 @@
 import type {Config} from '@docusaurus/types';
 import type {Options, ThemeConfig} from '@docusaurus/preset-classic';
 import {themes as prismThemes} from 'prism-react-renderer';
+import packageJson from './package.json';
 
-const organizationName = process.env.GITHUB_REPOSITORY_OWNER ?? 'sshnav';
+const organizationName = process.env.GITHUB_REPOSITORY_OWNER ?? 'Vulcanite';
 const projectName = process.env.GITHUB_REPOSITORY?.split('/')[1] ?? 'sshnav';
 const repositoryUrl = `https://github.com/${organizationName}/${projectName}`;
 const editBranch = process.env.DOCS_EDIT_BRANCH ?? 'main';
@@ -65,6 +66,7 @@ const config: Config = {
         {to: '/docs/guides/jump-hosts', label: 'Guides', position: 'left'},
         {to: '/docs/reference/cli', label: 'CLI', position: 'left'},
         {to: '/docs/changelog', label: 'Changelog', position: 'left'},
+        {type: 'html', value: `<span>v${packageJson.version}</span>`, position: 'right'},
         {href: repositoryUrl, label: 'GitHub', position: 'right'},
       ],
     },

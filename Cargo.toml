@@ -4,7 +4,7 @@ version = "0.20.2"
 edition = "2024"
 license = "MIT"
 description = "A fast local SSH inventory navigator and launcher."
-repository = "https://github.com/your-org/sshnav"
+repository = "https://github.com/Vulcanite/sshnav"
 
 [dependencies]
 anyhow = "1"

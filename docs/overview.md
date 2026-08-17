@@ -4,6 +4,8 @@ description: Learn how to organize, connect to, diagnose, and transfer files bet
 slug: /
 ---
 
+import packageJson from '@site/package.json';
+
 <pre className="ascii-doc" aria-label="sshnav">
 {`███████ ██████  ██   ██ ███    ██  █████  ██    ██
 ██      ██      ██   ██ ████   ██ ██   ██ ██    ██
@@ -11,6 +13,8 @@ slug: /
      ██      ██ ██   ██ ██  ██ ██ ██   ██  ██  ██
 ███████ ██████  ██   ██ ██   ████ ██   ██   ████`}
 </pre>
+
+Current release: <code>v{packageJson.version}</code>
 
 sshnav is a local SSH inventory, searchable terminal picker, connection launcher, and file-transfer frontend. It stores the details that are easy to forget—aliases, users, ports, jump routes, tags, forwards, options, and identity metadata—then launches native `ssh` or `scp` directly.
 

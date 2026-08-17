@@ -15,7 +15,7 @@ sshnav runs on Linux and macOS terminals. Connections use the system `ssh` and f
 ## Install from source
 
 ```bash
-git clone https://github.com/OWNER/sshnav.git
+git clone https://github.com/Vulcanite/sshnav.git
 cd sshnav
 cargo install --path . --locked
 sshnav --version
