@@ -60,7 +60,8 @@ CREATE TABLE IF NOT EXISTS hosts (
     port INTEGER,
     identity_file TEXT,
     template TEXT,
-    proxy_jump TEXT
+    proxy_jump TEXT,
+    auto_reconnect INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS host_tags (
@@ -95,21 +96,17 @@ CREATE TABLE IF NOT EXISTS secrets (
     PRIMARY KEY (host_alias, kind)
 );
 
-PRAGMA user_version = 1;
+PRAGMA user_version = 3;
 "#,
             )?;
         }
         let version: i64 = self
             .conn
             .query_row("PRAGMA user_version", [], |row| row.get(0))?;
-        if version < 2 {
-            self.migrate_schema_v2()?;
-        }
-        let version: i64 = self
-            .conn
-            .query_row("PRAGMA user_version", [], |row| row.get(0))?;
-        if version < 3 {
-            self.migrate_schema_v3()?;
+        match version {
+            1 => self.migrate_schema_v1_to_v3()?,
+            2 => self.migrate_schema_v2_to_v3()?,
+            _ => {}
         }
         self.conn.execute(
             "DELETE FROM secrets WHERE kind = ?1",
@@ -318,55 +315,20 @@ PRAGMA user_version = 1;
             .map_err(Into::into)
     }
 
-    fn migrate_schema_v2(&self) -> Result<()> {
+    fn migrate_schema_v1_to_v3(&self) -> Result<()> {
         self.conn.execute_batch(
             r#"
-ALTER TABLE hosts ADD COLUMN use_cert_auth INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE hosts ADD COLUMN cert_principals_json TEXT NOT NULL DEFAULT '[]';
-ALTER TABLE hosts ADD COLUMN cert_validity TEXT;
-
-CREATE TABLE IF NOT EXISTS global_secrets (
-    kind TEXT PRIMARY KEY NOT NULL,
-    source_path TEXT,
-    salt BLOB NOT NULL,
-    nonce BLOB NOT NULL,
-    ciphertext BLOB NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY NOT NULL,
-    value TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS recordings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    alias TEXT NOT NULL,
-    path TEXT NOT NULL,
-    started_at_unix INTEGER NOT NULL,
-    duration_ms INTEGER NOT NULL,
-    exit_code INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS cert_issuances (
-    serial INTEGER PRIMARY KEY AUTOINCREMENT,
-    alias TEXT NOT NULL,
-    principal TEXT NOT NULL,
-    issued_at_unix INTEGER NOT NULL,
-    valid_after TEXT NOT NULL,
-    valid_before TEXT NOT NULL
-);
-
-PRAGMA user_version = 2;
+ALTER TABLE hosts ADD COLUMN auto_reconnect INTEGER NOT NULL DEFAULT 0;
+PRAGMA user_version = 3;
 "#,
         )?;
         Ok(())
     }
 
-    fn migrate_schema_v3(&self) -> Result<()> {
+    fn migrate_schema_v2_to_v3(&self) -> Result<()> {
         self.conn.execute_batch(
             r#"
 ALTER TABLE hosts ADD COLUMN auto_reconnect INTEGER NOT NULL DEFAULT 0;
-DELETE FROM global_secrets WHERE kind = 'ca_private_key';
 DROP TABLE IF EXISTS recordings;
 DROP TABLE IF EXISTS cert_issuances;
 DROP TABLE IF EXISTS global_secrets;
@@ -462,6 +424,21 @@ mod tests {
         let dir = tempdir().unwrap();
         let paths = paths(dir.path());
         let mut store = Store::open(&paths).unwrap();
+        let schema_version: i64 = store
+            .conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap();
+        let abandoned_tables: i64 = store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('recordings', 'cert_issuances', 'global_secrets', 'settings')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(schema_version, CURRENT_SCHEMA_VERSION);
+        assert_eq!(abandoned_tables, 0);
+
         let mut inventory = Inventory::default();
         let mut host = Host::new("prod".into(), "10.0.0.10".into());
         host.user = Some("ubuntu".into());
@@ -476,6 +453,48 @@ mod tests {
         assert_eq!(loaded.hosts[0].alias, "prod");
         assert_eq!(loaded.hosts[0].tags, vec!["prod", "db"]);
         assert_eq!(loaded.hosts[0].local_forwards, vec!["15432 localhost:5432"]);
+    }
+
+    #[test]
+    fn migrates_private_v2_schema_without_abandoned_tables() {
+        let dir = tempdir().unwrap();
+        let paths = paths(dir.path());
+        let store = Store::open(&paths).unwrap();
+        store
+            .conn
+            .execute_batch(
+                r#"
+ALTER TABLE hosts DROP COLUMN auto_reconnect;
+CREATE TABLE recordings (id INTEGER PRIMARY KEY);
+CREATE TABLE cert_issuances (id INTEGER PRIMARY KEY);
+CREATE TABLE global_secrets (kind TEXT PRIMARY KEY);
+CREATE TABLE settings (key TEXT PRIMARY KEY);
+PRAGMA user_version = 2;
+"#,
+            )
+            .unwrap();
+        drop(store);
+
+        let store = Store::open(&paths).unwrap();
+        let abandoned_tables: i64 = store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('recordings', 'cert_issuances', 'global_secrets', 'settings')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let reconnect_column: i64 = store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('hosts') WHERE name = 'auto_reconnect'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(abandoned_tables, 0);
+        assert_eq!(reconnect_column, 1);
     }
 
     #[test]
