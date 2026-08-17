@@ -5,11 +5,11 @@ import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
 import styles from './index.module.css';
 
-const asciiLogo = String.raw`███████ ██████  ██   ██ ███    ██  █████  ██    ██
-██      ██      ██   ██ ████   ██ ██   ██ ██    ██
-███████ ██████  ███████ ██ ██  ██ ███████ ██    ██
-     ██      ██ ██   ██ ██  ██ ██ ██   ██  ██  ██
-███████ ██████  ██   ██ ██   ████ ██   ██   ████`;
+const asciiLogo = String.raw` ____  ____  _   _  _   _    _    __     __
+/ ___|/ ___|| | | || \ | |  / \   \ \   / /
+\___ \\___ \| |_| ||  \| | / _ \   \ \ / /
+ ___) |___) |  _  || |\  |/ ___ \   \ V /
+|____/|____/|_| |_||_| \_/_/   \_\   \_/`;
 
 const features = [
   ['01', 'Find', 'Fuzzy-search aliases, groups, users, hosts, and tags from one keyboard-first picker.'],
