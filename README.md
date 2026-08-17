@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="static/img/ascii-wordmark.svg" alt="sshnav" width="720">
+</p>
+
 # sshnav
 
 `sshnav` is a fast local SSH inventory navigator and launcher for Linux and macOS terminals.
