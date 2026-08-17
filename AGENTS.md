@@ -1,6 +1,6 @@
 ## graphify
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+Local development can generate a knowledge graph at `graphify-out/`. The directory is intentionally ignored and may not exist in a fresh clone.
 
 When the user types `/graphify`, invoke the `skill` tool with `skill: "graphify"` before doing anything else.
 
