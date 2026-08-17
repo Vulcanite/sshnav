@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="static/img/ascii-wordmark.svg" alt="sshnav" width="720">
+  <img src="static/img/ascii-wordmark.svg" alt="sshnav" width="640">
 </p>
 
 # sshnav

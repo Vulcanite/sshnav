@@ -1,9 +1,3 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 108" role="img" aria-label="sshnav ASCII wordmark">
-  <g fill="#e7704b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700" text-anchor="middle" xml:space="preserve">
-    <text x="360" y="18">███████ ██████  ██   ██ ███    ██  █████  ██    ██</text>
-    <text x="360" y="38">██      ██      ██   ██ ████   ██ ██   ██ ██    ██</text>
-    <text x="360" y="58">███████ ██████  ███████ ██ ██  ██ ███████ ██    ██</text>
-    <text x="360" y="78">     ██      ██ ██   ██ ██  ██ ██ ██   ██  ██  ██</text>
-    <text x="360" y="98">███████ ██████  ██   ██ ██   ████ ██   ██   ████</text>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 499 68" role="img" aria-label="sshnav ASCII wordmark" shape-rendering="crispEdges">
+  <path fill="#e7704b" d="M0 0h69v12H0zM80 0h59v12H80zM160 0h19v12H160zM210 0h19v12H210zM240 0h29v12H240zM310 0h19v12H310zM350 0h49v12H350zM420 0h19v12H420zM480 0h19v12H480zM0 14h19v12H0zM80 14h19v12H80zM160 14h19v12H160zM210 14h19v12H210zM240 14h39v12H240zM310 14h19v12H310zM340 14h19v12H340zM390 14h19v12H390zM420 14h19v12H420zM480 14h19v12H480zM0 28h69v12H0zM80 28h59v12H80zM160 28h69v12H160zM240 28h19v12H240zM270 28h19v12H270zM310 28h19v12H310zM340 28h69v12H340zM420 28h19v12H420zM480 28h19v12H480zM50 42h19v12H50zM130 42h19v12H130zM160 42h19v12H160zM210 42h19v12H210zM240 42h19v12H240zM280 42h19v12H280zM310 42h19v12H310zM340 42h19v12H340zM390 42h19v12H390zM430 42h19v12H430zM470 42h19v12H470zM0 56h69v12H0zM80 56h59v12H80zM160 56h19v12H160zM210 56h19v12H210zM240 56h19v12H240zM290 56h39v12H290zM340 56h19v12H340zM390 56h19v12H390zM440 56h39v12H440z"/>
 </svg>
