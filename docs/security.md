@@ -19,6 +19,8 @@ SSH and SCP argument vectors are passed directly to `Command`; they are never jo
 
 Only a constrained allowlist of imported OpenSSH options is forwarded to direct SSH and SCP commands. sshnav supplies strict host-key settings and uses the user's normal `known_hosts` file.
 
+The optional `sshnav generate` include file is written into the user's real `~/.ssh/config`, so it holds imported options to a separate rule: any directive that can execute a command as a side effect of connecting — `ProxyCommand`, `LocalCommand`, `PermitLocalCommand`, `RemoteCommand`, `KnownHostsCommand`, `Match`, `Include` — is written back only as a comment, never as a live directive, regardless of where the option came from.
+
 ## What encryption does not protect
 
 An attacker controlling the same OS user can read the local encryption key, database, process environment, and temporary files during active connections. sshnav is not a general-purpose secrets manager and has not been independently audited.

