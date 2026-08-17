@@ -1,6 +1,5 @@
 use crate::generator;
 use crate::paths::AppPaths;
-use crate::secrets;
 use crate::storage::Store;
 use anyhow::Result;
 use std::fs;
@@ -20,7 +19,7 @@ pub struct Check {
 }
 
 pub fn run(paths: &AppPaths, store: &Store) -> Vec<Check> {
-    let mut checks = vec![
+    let checks = vec![
         check_exists("database", &paths.db),
         check_generated_config(paths, store),
         check_ssh(),
@@ -29,7 +28,6 @@ pub fn run(paths: &AppPaths, store: &Store) -> Vec<Check> {
         check_owner_only_permissions("database_permissions", &paths.db),
         check_optional_not_writable("ssh_config_permissions", &paths.ssh_config),
     ];
-    checks.extend(check_private_keys(store));
     checks
 }
 
@@ -144,50 +142,6 @@ fn check_include(paths: &AppPaths) -> Check {
             message: "optional ssh config not present".into(),
         },
     }
-}
-
-fn check_private_keys(store: &Store) -> Vec<Check> {
-    let Ok(inventory) = store.load_inventory() else {
-        return vec![Check {
-            status: Status::Warn,
-            name: "private_keys",
-            message: "could not load hosts for key checks".into(),
-        }];
-    };
-
-    let mut checks = Vec::new();
-    for host in inventory.hosts {
-        if let Some(path) = &host.private_key_source_path {
-            let expanded = secrets::expand_tilde(std::path::Path::new(path));
-            if expanded.exists() {
-                checks.push(Check {
-                    status: Status::Ok,
-                    name: "key_source_metadata",
-                    message: format!("{} source path exists: {}", host.alias, expanded.display()),
-                });
-            } else if host.has_private_key {
-                checks.push(Check {
-                    status: Status::Ok,
-                    name: "key_source_metadata",
-                    message: format!(
-                        "{} source path missing; encrypted key is still stored",
-                        host.alias
-                    ),
-                });
-            } else {
-                checks.push(Check {
-                    status: Status::Warn,
-                    name: "key_source_metadata",
-                    message: format!(
-                        "{} source path missing and no encrypted key is stored: {}",
-                        host.alias,
-                        expanded.display()
-                    ),
-                });
-            }
-        }
-    }
-    checks
 }
 
 #[cfg(unix)]
