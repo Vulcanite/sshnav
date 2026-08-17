@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   linux-packages:
@@ -69,3 +70,11 @@ jobs:
           else
             gh release create "$TAG" dist/*.deb dist/*.rpm --title "$TAG" --notes "Release $TAG"
           fi
+
+  changelog:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: linux-packages
+    uses: ./.github/workflows/copilot-changelog.yml
+    with:
+      release_tag: ${{ github.ref_name }}
+    secrets: inherit
