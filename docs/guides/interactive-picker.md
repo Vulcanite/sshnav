@@ -10,6 +10,10 @@ sshnav
 sshnav pick production
 ```
 
+[![sshnav interactive picker showing a filtered host inventory and connection details](/img/screenshots/interactive-picker.png)](/img/screenshots/interactive-picker.png)
+
+<p style={{textAlign: 'center'}}><em>A fixed-size tmux capture using a sanitized example inventory.</em></p>
+
 Search covers aliases, display names, groups, hostnames, users, and tags. Results are fuzzy-ranked and update as you type.
 
 The details panel shows connection metadata, authentication mode, proxy jump, and a background TCP reachability summary. “Reachable” means the host accepted a TCP connection on its SSH port; it does not prove authentication will succeed.

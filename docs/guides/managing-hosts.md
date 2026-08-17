@@ -17,6 +17,10 @@ sshnav host add \
 
 Use `sshnav add` when you prefer a guided form with group, jump-host, and private-key completion.
 
+[![sshnav guided add-host form with a populated example host](/img/screenshots/add-host-form.png)](/img/screenshots/add-host-form.png)
+
+<p style={{textAlign: 'center'}}><em>The guided form previews the saved connection while you enter it.</em></p>
+
 ## List
 
 ```bash
