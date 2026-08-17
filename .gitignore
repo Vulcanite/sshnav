@@ -1,0 +1,5 @@
+/target
+/dist
+graphify-out/
+.codex/
+.opencode/
