@@ -5,6 +5,12 @@ description: User-visible changes in each sshnav release.
 
 This changelog records user-visible behavior. It is kept unversioned with the rest of the documentation; each release is a section on this page.
 
+## v0.1.3
+
+### Changed
+
+- `sshnav doctor` no longer reports private-key source metadata. Encrypted keys continue to use sshnav's stored copy independently of the original file.
+
 ## 0.1.3
 
 ### Changed
