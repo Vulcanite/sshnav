@@ -6,6 +6,8 @@ mod generator;
 mod inventory;
 mod paths;
 mod picker;
+mod query;
+mod reachability;
 mod runner;
 mod secrets;
 mod ssh_config;

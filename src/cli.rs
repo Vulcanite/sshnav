@@ -5,6 +5,8 @@ use crate::generator;
 use crate::inventory::{Host, Inventory};
 use crate::paths::AppPaths;
 use crate::picker;
+use crate::query::{self, HostQuery};
+use crate::reachability::{self, ReachabilityCache};
 use crate::runner;
 use crate::secrets;
 use crate::ssh_config;
@@ -16,6 +18,7 @@ use clap::{Args, CommandFactory, Parser, Subcommand};
 use clap_complete::{Shell, generate};
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
+use std::collections::HashMap;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
@@ -138,6 +141,10 @@ enum HostCommand {
     Edit(EditArgs),
     /// Copy a saved host to a new alias.
     Duplicate(DuplicateArgs),
+    /// Rename a saved host alias and rewrite jump references.
+    Rename(RenameArgs),
+    /// Search hosts with fuzzy text and g:/t:/u:/unreachable: prefixes.
+    Search(SearchArgs),
     Remove(RemoveArgs),
     #[command(name = "update-key")]
     UpdateKey(UpdateKeyArgs),
@@ -151,6 +158,15 @@ enum HostCommand {
 struct ListArgs {
     #[arg(long)]
     json: bool,
+    /// Filter by group substring.
+    #[arg(long)]
+    group: Option<String>,
+    /// Filter by tag substring; repeat or pass comma-separated values.
+    #[arg(long = "tag")]
+    tags: Vec<String>,
+    /// Filter by user substring.
+    #[arg(long)]
+    user: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -215,6 +231,22 @@ struct DuplicateArgs {
     source_alias: String,
     /// New, unique host alias.
     new_alias: String,
+}
+
+#[derive(Debug, Args)]
+struct RenameArgs {
+    /// Current host alias.
+    current_alias: String,
+    /// New, unique host alias.
+    new_alias: String,
+}
+
+#[derive(Debug, Args)]
+struct SearchArgs {
+    /// Fuzzy text and optional g:/t:/u:/unreachable: prefixes.
+    query: String,
+    #[arg(long)]
+    json: bool,
 }
 
 #[derive(Debug, Args)]
@@ -536,7 +568,7 @@ fn edit_host_from_draft(
     draft: AddHostDraft,
 ) -> Result<i32> {
     if draft.alias != original.alias {
-        bail!("interactive edit cannot rename host aliases yet");
+        store.rename_host(&original.alias, &draft.alias)?;
     }
 
     let resolved_private_key = if draft.auth == AuthChoice::PrivateKey {
@@ -610,14 +642,15 @@ fn edit_host_from_draft(
     Ok(0)
 }
 
-fn run_host_command(_paths: &AppPaths, store: &mut Store, command: HostCommand) -> Result<i32> {
+fn run_host_command(paths: &AppPaths, store: &mut Store, command: HostCommand) -> Result<i32> {
     let mut inventory = store.load_inventory()?;
     match command {
         HostCommand::List(args) => {
+            let hosts = list_hosts(&inventory, &args);
             if args.json {
-                println!("{}", serde_json::to_string_pretty(&inventory.hosts)?);
+                println!("{}", serde_json::to_string_pretty(&hosts)?);
             } else {
-                print_host_list(&inventory);
+                print_host_list(&hosts);
             }
             Ok(0)
         }
@@ -646,7 +679,7 @@ fn run_host_command(_paths: &AppPaths, store: &mut Store, command: HostCommand) 
             inventory.hosts.sort_by(|a, b| a.alias.cmp(&b.alias));
             store.save_inventory(&inventory)?;
             if let Some(path) = resolved_identity_file {
-                import_private_key(_paths, store, &args.alias, &path)?;
+                import_private_key(paths, store, &args.alias, &path)?;
             }
             term::success("added host");
             Ok(0)
@@ -699,12 +732,22 @@ fn run_host_command(_paths: &AppPaths, store: &mut Store, command: HostCommand) 
             }
             store.save_inventory(&inventory)?;
             if let Some(path) = resolved_identity_file {
-                import_private_key(_paths, store, &args.alias, &path)?;
+                import_private_key(paths, store, &args.alias, &path)?;
             }
             term::success("updated host");
             Ok(0)
         }
         HostCommand::Duplicate(args) => duplicate_host(store, &args.source_alias, &args.new_alias),
+        HostCommand::Rename(args) => rename_host(store, &args.current_alias, &args.new_alias),
+        HostCommand::Search(args) => {
+            let hosts = search_hosts(&inventory, &args.query, &paths.db);
+            if args.json {
+                println!("{}", serde_json::to_string_pretty(&hosts)?);
+            } else {
+                print_host_list(&hosts);
+            }
+            Ok(0)
+        }
         HostCommand::Remove(args) => remove_host(store, &args.alias),
         HostCommand::UpdateKey(args) => {
             let resolved_key = secrets::resolve_private_key_path(&args.from)?;
@@ -714,7 +757,7 @@ fn run_host_command(_paths: &AppPaths, store: &mut Store, command: HostCommand) 
                 .with_context(|| missing_message.clone())?;
             host.private_key_source_path = Some(resolved_key.display().to_string());
             store.save_inventory(&inventory)?;
-            import_private_key(_paths, store, &args.alias, &resolved_key)?;
+            import_private_key(paths, store, &args.alias, &resolved_key)?;
             term::success(format!("updated encrypted private key for {}", args.alias));
             Ok(0)
         }
@@ -815,8 +858,8 @@ fn import_private_key(paths: &AppPaths, store: &Store, alias: &str, path: &Path)
     Ok(())
 }
 
-fn print_host_list(inventory: &Inventory) {
-    for host in &inventory.hosts {
+fn print_host_list(hosts: &[Host]) {
+    for host in hosts {
         let user = host.user.as_deref().unwrap_or("-");
         let port = host
             .port
@@ -833,6 +876,47 @@ fn print_host_list(inventory: &Inventory) {
             host.alias, host.hostname, user, port, tags, secrets
         );
     }
+}
+
+fn list_hosts(inventory: &Inventory, args: &ListArgs) -> Vec<Host> {
+    let mut query = HostQuery::default();
+    if let Some(group) = &args.group {
+        query.groups.push(group.clone());
+    }
+    query.tags = normalize_tags(args.tags.clone());
+    if let Some(user) = &args.user {
+        query.users.push(user.clone());
+    }
+    query::filter_hosts(&inventory.hosts, &query, &HashMap::new())
+        .into_iter()
+        .cloned()
+        .collect()
+}
+
+fn search_hosts(inventory: &Inventory, raw_query: &str, db_path: &Path) -> Vec<Host> {
+    let parsed = query::parse_query(raw_query);
+    let mut reachability = HashMap::new();
+    if parsed.uses_reachability() {
+        let cache = ReachabilityCache::load(&reachability::cache_path(db_path));
+        let now = reachability::now_unix();
+        for host in &inventory.hosts {
+            let status = cache
+                .fresh_status(host, now)
+                .map(ToOwned::to_owned)
+                .unwrap_or_else(|| reachability::probe(&host.hostname, host.port.unwrap_or(22)));
+            reachability.insert(host.alias.clone(), status);
+        }
+    }
+    picker::rank_hosts(&inventory.hosts, raw_query, &reachability)
+        .into_iter()
+        .map(|(host, _)| host.clone())
+        .collect()
+}
+
+fn rename_host(store: &mut Store, current_alias: &str, new_alias: &str) -> Result<i32> {
+    store.rename_host(current_alias, new_alias)?;
+    term::success(format!("renamed host {current_alias} to {new_alias}"));
+    Ok(0)
 }
 
 fn duplicate_host(store: &mut Store, source_alias: &str, new_alias: &str) -> Result<i32> {
@@ -1184,6 +1268,119 @@ mod tests {
             panic!("expected edit command");
         };
         assert!(args.no_proxy_jump);
+    }
+
+    #[test]
+    fn parses_rename_list_filters_and_search() {
+        let cli = Cli::try_parse_from(["sshnav", "host", "rename", "prod", "prod-api"]).unwrap();
+        let Some(Command::Host(HostCommand::Rename(args))) = cli.command else {
+            panic!("expected rename command");
+        };
+        assert_eq!(args.current_alias, "prod");
+        assert_eq!(args.new_alias, "prod-api");
+
+        let cli = Cli::try_parse_from([
+            "sshnav",
+            "host",
+            "list",
+            "--group",
+            "production",
+            "--tag",
+            "db",
+            "--user",
+            "ubuntu",
+        ])
+        .unwrap();
+        let Some(Command::Host(HostCommand::List(args))) = cli.command else {
+            panic!("expected list command");
+        };
+        assert_eq!(args.group.as_deref(), Some("production"));
+        assert_eq!(args.tags, vec!["db"]);
+        assert_eq!(args.user.as_deref(), Some("ubuntu"));
+
+        let cli = Cli::try_parse_from(["sshnav", "host", "search", "g:prod t:db api"]).unwrap();
+        let Some(Command::Host(HostCommand::Search(args))) = cli.command else {
+            panic!("expected search command");
+        };
+        assert_eq!(args.query, "g:prod t:db api");
+    }
+
+    #[test]
+    fn rename_rewrites_jumps_and_keeps_secret() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = test_paths(dir.path());
+        let mut store = Store::open(&paths).unwrap();
+        let mut bastion = Host::new("bastion".into(), "192.0.2.10".into());
+        bastion.user = Some("ubuntu".into());
+        let mut app = Host::new("app".into(), "192.0.2.11".into());
+        app.user = Some("ubuntu".into());
+        app.proxy_jump = Some("bastion".into());
+        let mut inventory = Inventory::default();
+        inventory.hosts.extend([bastion, app]);
+        store.save_inventory(&inventory).unwrap();
+        store
+            .put_secret(
+                "bastion",
+                SECRET_PRIVATE_KEY,
+                &SecretBlob {
+                    salt: vec![1],
+                    nonce: vec![2],
+                    ciphertext: vec![3],
+                    source_path: None,
+                },
+            )
+            .unwrap();
+
+        rename_host(&mut store, "bastion", "jump").unwrap();
+        let inventory = store.load_inventory().unwrap();
+        assert!(inventory.find_host("bastion").is_none());
+        assert!(inventory.find_host("jump").unwrap().has_private_key);
+        assert_eq!(
+            inventory.find_host("app").unwrap().proxy_jump.as_deref(),
+            Some("jump")
+        );
+        assert!(
+            store
+                .get_secret("jump", SECRET_PRIVATE_KEY)
+                .unwrap()
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn list_and_search_apply_structured_filters() {
+        let mut prod = Host::new("prod-db".into(), "prod.example".into());
+        prod.user = Some("ubuntu".into());
+        prod.group = Some("production".into());
+        prod.tags = vec!["db".into()];
+        let mut web = Host::new("web".into(), "web.example".into());
+        web.user = Some("deploy".into());
+        web.group = Some("production".into());
+        web.tags = vec!["frontend".into()];
+        let inventory = Inventory {
+            hosts: vec![prod, web],
+            ..Inventory::default()
+        };
+        let listed = list_hosts(
+            &inventory,
+            &ListArgs {
+                json: false,
+                group: Some("prod".into()),
+                tags: vec!["db".into()],
+                user: Some("ubuntu".into()),
+            },
+        );
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].alias, "prod-db");
+
+        let dir = tempfile::tempdir().unwrap();
+        let found = search_hosts(
+            &inventory,
+            "g:production frontend",
+            &dir.path().join("sshnav.db"),
+        );
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].alias, "web");
     }
 
     #[test]

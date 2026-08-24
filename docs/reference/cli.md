@@ -38,9 +38,13 @@ sshnav receive <ALIAS> <REMOTE_SOURCE> [LOCAL_DESTINATION] [OPTIONS]
 
 ## Host management
 
-### `sshnav host list [--json]`
+### `sshnav host list [--json] [--group <GROUP>] [--tag <TAG>] [--user <USER>]`
 
-List saved hosts as aligned text or JSON. Secret bytes are never returned.
+List saved hosts as aligned text or JSON. Secret bytes are never returned. `--group`, `--tag`, and `--user` keep hosts whose group, tags, or user contain the given substring. Repeat `--tag` or pass comma-separated values.
+
+### `sshnav host search <QUERY> [--json]`
+
+Filter and fuzzy-rank hosts. The query uses the same prefixes as the picker (`g:`/`group:`, `t:`/`tag:`, `u:`/`user:`, `unreachable:`/`reachable:`) plus remaining free text.
 
 ### `sshnav host add`
 
@@ -71,6 +75,10 @@ Uses the same mutable fields as `host add`. Additional flags:
 ### `sshnav host duplicate <SOURCE_ALIAS> <NEW_ALIAS>`
 
 Copy every saved host field and create an independent encrypted-key record.
+
+### `sshnav host rename <CURRENT_ALIAS> <NEW_ALIAS>`
+
+Change a host's alias. Saved `ProxyJump` hops that named the old alias are rewritten. Encrypted private-key records move with the host.
 
 ### `sshnav host remove <ALIAS>`
 

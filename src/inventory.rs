@@ -11,6 +11,8 @@ pub enum InventoryError {
     FlagLikeAlias(String),
     #[error("duplicate host alias {0:?}")]
     DuplicateAlias(String),
+    #[error("unknown host alias {0:?}")]
+    UnknownAlias(String),
     #[error("{field} for host {alias:?} contains a control character")]
     ControlCharacter { alias: String, field: &'static str },
     #[error("hostname {hostname:?} for host {alias:?} is not a valid IP address or DNS hostname")]
@@ -165,6 +167,35 @@ impl Inventory {
         self.hosts.iter_mut().find(|host| host.alias == alias)
     }
 
+    pub fn rename_host(
+        &mut self,
+        current_alias: &str,
+        new_alias: &str,
+    ) -> Result<(), InventoryError> {
+        if current_alias == new_alias {
+            return Ok(());
+        }
+        validate_alias(new_alias)?;
+        validate_generated_field(new_alias, "alias", new_alias)?;
+        if self.find_host(current_alias).is_none() {
+            return Err(InventoryError::UnknownAlias(current_alias.to_string()));
+        }
+        if self.find_host(new_alias).is_some() {
+            return Err(InventoryError::DuplicateAlias(new_alias.to_string()));
+        }
+        for host in &mut self.hosts {
+            if let Some(proxy_jump) = host.proxy_jump.as_mut() {
+                *proxy_jump = rewrite_proxy_jump_hops(proxy_jump, current_alias, new_alias);
+            }
+            if host.alias == current_alias {
+                host.alias = new_alias.to_string();
+            }
+        }
+        self.hosts
+            .sort_by(|left, right| left.alias.cmp(&right.alias));
+        Ok(())
+    }
+
     pub fn upsert_imported_hosts(&mut self, imported: Vec<Host>) {
         for imported_host in imported {
             if let Some(existing) = self.find_host_mut(&imported_host.alias) {
@@ -175,6 +206,22 @@ impl Inventory {
         }
         self.hosts.sort_by(|a, b| a.alias.cmp(&b.alias));
     }
+}
+
+pub(crate) fn rewrite_proxy_jump_hops(value: &str, current_alias: &str, new_alias: &str) -> String {
+    value
+        .split(',')
+        .map(str::trim)
+        .filter(|hop| !hop.is_empty())
+        .map(|hop| {
+            if hop == current_alias {
+                new_alias.to_string()
+            } else {
+                hop.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 fn validate_alias(alias: &str) -> Result<(), InventoryError> {
@@ -364,6 +411,58 @@ mod tests {
         assert_eq!(
             inventory.validate().unwrap_err(),
             InventoryError::MissingUser("prod".into())
+        );
+    }
+
+    fn host(alias: &str, hostname: &str, jump: Option<&str>) -> Host {
+        let mut host = Host::new(alias.into(), hostname.into());
+        host.user = Some("ubuntu".into());
+        host.proxy_jump = jump.map(ToOwned::to_owned);
+        host
+    }
+
+    #[test]
+    fn rename_updates_alias_and_saved_jump_hops() {
+        let mut inventory = Inventory::default();
+        inventory.hosts.push(host("bastion", "192.0.2.10", None));
+        inventory
+            .hosts
+            .push(host("app", "192.0.2.11", Some("bastion,ops@edge.example")));
+        inventory
+            .hosts
+            .push(host("db", "192.0.2.12", Some("bastion")));
+
+        inventory.rename_host("bastion", "jump").unwrap();
+
+        assert!(inventory.find_host("bastion").is_none());
+        assert_eq!(inventory.find_host("jump").unwrap().hostname, "192.0.2.10");
+        assert_eq!(
+            inventory.find_host("app").unwrap().proxy_jump.as_deref(),
+            Some("jump,ops@edge.example")
+        );
+        assert_eq!(
+            inventory.find_host("db").unwrap().proxy_jump.as_deref(),
+            Some("jump")
+        );
+    }
+
+    #[test]
+    fn rename_rejects_unknown_and_duplicate_aliases() {
+        let mut inventory = Inventory::default();
+        inventory.hosts.push(host("prod", "prod.example", None));
+        inventory.hosts.push(host("dev", "dev.example", None));
+
+        assert_eq!(
+            inventory.rename_host("missing", "other").unwrap_err(),
+            InventoryError::UnknownAlias("missing".into())
+        );
+        assert_eq!(
+            inventory.rename_host("prod", "dev").unwrap_err(),
+            InventoryError::DuplicateAlias("dev".into())
+        );
+        assert_eq!(
+            inventory.rename_host("prod", "-bad").unwrap_err(),
+            InventoryError::FlagLikeAlias("-bad".into())
         );
     }
 }
