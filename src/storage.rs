@@ -14,6 +14,7 @@ pub struct Store {
     conn: Connection,
 }
 
+#[derive(Clone)]
 pub struct SecretBlob {
     pub salt: Vec<u8>,
     pub nonce: Vec<u8>,
@@ -253,6 +254,17 @@ PRAGMA user_version = 3;
             params![alias, kind],
         )?;
         Ok(changed > 0)
+    }
+
+    pub fn rename_host(&mut self, current_alias: &str, new_alias: &str) -> Result<()> {
+        let secret = self.get_secret(current_alias, SECRET_PRIVATE_KEY)?;
+        let mut inventory = self.load_inventory()?;
+        inventory.rename_host(current_alias, new_alias)?;
+        self.save_inventory(&inventory)?;
+        if let Some(secret) = secret {
+            self.put_secret(new_alias, SECRET_PRIVATE_KEY, &secret)?;
+        }
+        Ok(())
     }
 
     pub fn has_secret(&self, alias: &str, kind: &str) -> Result<bool> {
@@ -560,5 +572,50 @@ PRAGMA user_version = 2;
         let loaded = store.load_inventory().unwrap();
 
         assert!(loaded.hosts.is_empty());
+    }
+
+    #[test]
+    fn rename_preserves_secret_and_rewrites_jump_aliases() {
+        let dir = tempdir().unwrap();
+        let paths = paths(dir.path());
+        let mut store = Store::open(&paths).unwrap();
+        let mut inventory = Inventory::default();
+        let mut bastion = Host::new("bastion".into(), "192.0.2.10".into());
+        bastion.user = Some("ubuntu".into());
+        let mut app = Host::new("app".into(), "192.0.2.11".into());
+        app.user = Some("ubuntu".into());
+        app.proxy_jump = Some("bastion".into());
+        inventory.hosts.extend([bastion, app]);
+        store.save_inventory(&inventory).unwrap();
+        let blob = SecretBlob {
+            salt: vec![1; 16],
+            nonce: vec![2; 24],
+            ciphertext: vec![3; 8],
+            source_path: Some("/keys/bastion".into()),
+        };
+        store
+            .put_secret("bastion", SECRET_PRIVATE_KEY, &blob)
+            .unwrap();
+
+        store.rename_host("bastion", "jump").unwrap();
+        let loaded = store.load_inventory().unwrap();
+
+        assert!(loaded.find_host("bastion").is_none());
+        assert!(loaded.find_host("jump").unwrap().has_private_key);
+        assert_eq!(
+            loaded.find_host("app").unwrap().proxy_jump.as_deref(),
+            Some("jump")
+        );
+        let renamed = store
+            .get_secret("jump", SECRET_PRIVATE_KEY)
+            .unwrap()
+            .expect("renamed secret");
+        assert_eq!(renamed.ciphertext, blob.ciphertext);
+        assert!(
+            store
+                .get_secret("bastion", SECRET_PRIVATE_KEY)
+                .unwrap()
+                .is_none()
+        );
     }
 }

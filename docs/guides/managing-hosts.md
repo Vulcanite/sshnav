@@ -26,9 +26,11 @@ Use `sshnav add` when you prefer a guided form with group, jump-host, and privat
 ```bash
 sshnav host list
 sshnav host list --json
+sshnav host list --group production --tag db
+sshnav host search 'g:prod t:db api'
 ```
 
-JSON output is useful for inspection and small local scripts. Secret material is never included.
+JSON output is useful for inspection and small local scripts. Secret material is never included. `--group`, `--tag`, and `--user` keep matching hosts; `host search` also accepts picker prefixes such as `g:`, `t:`, `u:`, and `unreachable:`.
 
 ## Edit
 
@@ -39,6 +41,8 @@ sshnav host edit prod-api --no-proxy-jump
 ```
 
 Only supplied fields change. Use the explicit `--no-*` flags to disable reconnect or clear a jump route.
+
+In the picker, <kbd>Ctrl</kbd>+<kbd>E</kbd> opens the edit form, including the alias field. Renaming there rewrites jump routes that pointed at the old alias.
 
 ## Duplicate
 
@@ -57,3 +61,11 @@ sshnav host remove staging-api
 ```
 
 Removing a host also removes its associated tags, forwards, options, and encrypted secret rows.
+
+## Rename
+
+```bash
+sshnav host rename prod-api api-v2
+```
+
+The new alias must be unique and valid. Hosts whose saved jump route named `prod-api` are updated to `api-v2`. Literal OpenSSH hops such as `ubuntu@bastion.example` are left unchanged.

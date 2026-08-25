@@ -291,7 +291,7 @@ impl AddForm {
             },
             existing_private_key: host.has_private_key,
             auto_reconnect: host.auto_reconnect,
-            field: Field::Hostname,
+            field: Field::Alias,
             groups,
             host_aliases,
             message: None,
@@ -455,8 +455,7 @@ impl AddForm {
 
     fn active_text_mut(&mut self) -> Option<&mut String> {
         match self.field {
-            Field::Alias if self.mode != FormMode::Edit => Some(&mut self.alias),
-            Field::Alias => None,
+            Field::Alias => Some(&mut self.alias),
             Field::Hostname => Some(&mut self.hostname),
             Field::User => Some(&mut self.user),
             Field::Port => Some(&mut self.port),
@@ -472,7 +471,6 @@ impl AddForm {
     fn visible_fields(&self) -> Vec<Field> {
         Field::ALL
             .into_iter()
-            .filter(|field| self.mode != FormMode::Edit || *field != Field::Alias)
             .filter(|field| *field != Field::PrivateKey || self.auth == AuthChoice::PrivateKey)
             .collect()
     }
@@ -650,8 +648,7 @@ fn draw_preview(frame: &mut ratatui::Frame<'_>, area: Rect, app: &AddForm) {
 }
 
 fn field_line(app: &AddForm, field: Field) -> Line<'static> {
-    let required = matches!(field, Field::Hostname | Field::User)
-        || (app.mode != FormMode::Edit && field == Field::Alias);
+    let required = matches!(field, Field::Alias | Field::Hostname | Field::User);
     let label = if required {
         format!("{} *", field_label(app, field))
     } else {
@@ -685,9 +682,11 @@ fn segment(label: &'static str, selected: bool) -> Span<'static> {
 
 fn contextual_help(app: &AddForm) -> Vec<Line<'static>> {
     let mut help = match app.field {
-        Field::Alias => vec![Line::from(
-            "Alias is the short name you will type in sshnav.",
-        )],
+        Field::Alias => vec![Line::from(if app.mode == FormMode::Edit {
+            "Changing the alias also rewrites jump routes that point at this host."
+        } else {
+            "Alias is the short name you will type in sshnav."
+        })],
         Field::Hostname => vec![Line::from(
             "Enter a DNS hostname or IP address. This is validated on save.",
         )],
@@ -998,5 +997,17 @@ mod tests {
         assert!(!form.confirm_delete_pressed());
         assert!(form.confirm_delete);
         assert!(form.confirm_delete_pressed());
+    }
+
+    #[test]
+    fn edit_form_allows_changing_alias() {
+        let mut host = Host::new("prod".into(), "example.com".into());
+        host.user = Some("ubuntu".into());
+        let mut form = AddForm::from_host(vec![], vec![], &host);
+        assert_eq!(form.field, Field::Alias);
+        assert!(form.visible_fields().contains(&Field::Alias));
+        form.alias = "prod-api".into();
+        let draft = form.submit().unwrap();
+        assert_eq!(draft.alias, "prod-api");
     }
 }

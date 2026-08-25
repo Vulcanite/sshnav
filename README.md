@@ -35,7 +35,7 @@ sshnav add
 ## Features
 
 - SQLite-backed host inventory with aliases, groups, tags, users, ports, forwards, and OpenSSH options.
-- Compact TUI navigator with fuzzy filtering, reachability status, host details, `Ctrl-A` add, `Ctrl-E` edit, `Ctrl-D` duplicate, and guarded delete from edit mode.
+- Compact TUI navigator with fuzzy filtering, structured `g:`/`t:`/`u:`/`unreachable:` prefixes, cached reachability status, host details, `Ctrl-A` add, `Ctrl-E` edit, `Ctrl-D` duplicate, `Ctrl-R` refresh, and guarded delete from edit mode.
 - OpenSSH config import and migration, including matching wildcard/default `Host` block inheritance such as `Host *`.
 - Optional generated OpenSSH include file via `sshnav generate`.
 - Encrypted imported private-key storage using an owner-only local key file, suitable for headless terminals.
@@ -53,10 +53,13 @@ sshnav connect <alias>
 sshnav send <alias> <local-source> [remote-destination] [-r|--recursive] [--rsync]
 sshnav receive <alias> <remote-source> [local-destination] [-r|--recursive] [--rsync]
 sshnav host list [--json]
+sshnav host list --group production --tag db
+sshnav host search 'g:prod api'
 sshnav host edit <alias> [flags...]
 sshnav host edit <alias> --proxy-jump <saved-alias>
 sshnav host edit <alias> --no-proxy-jump
 sshnav host duplicate <source-alias> <new-alias>
+sshnav host rename <current-alias> <new-alias>
 sshnav host update-key <alias> --from ~/.ssh/key
 sshnav host remove-key <alias>
 sshnav host forget-key-source <alias>

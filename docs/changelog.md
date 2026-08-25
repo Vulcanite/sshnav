@@ -5,6 +5,15 @@ description: User-visible changes in each sshnav release.
 
 This changelog records user-visible behavior. It is kept unversioned with the rest of the documentation; each release is a section on this page.
 
+## Unreleased
+
+### Added
+
+- `sshnav host rename` and alias editing in the guided form, including rewriting saved jump hops that named the old alias.
+- Structured picker and search prefixes: `g:`/`group:`, `t:`/`tag:`, `u:`/`user:`, `unreachable:`, and `reachable:`.
+- `sshnav host list --group`, `--tag`, and `--user` filters, plus `sshnav host search`.
+- Picker reachability caching, <kbd>Ctrl</kbd>+<kbd>R</kbd> refresh, and skipped probes for groups that recently looked offline.
+
 ## v0.1.3
 
 ### Changed

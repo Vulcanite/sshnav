@@ -17,7 +17,7 @@ SQLite is sshnav's source of truth. A host record can contain:
 
 ## Aliases
 
-An alias is the stable name used by every command. Prefer short, meaningful values such as `prod-api`, `staging-db`, or `home-lab`.
+An alias is the stable name used by every command. Prefer short, meaningful values such as `prod-api`, `staging-db`, or `home-lab`. Rename with `sshnav host rename` or the edit form; saved jump hops that used the old alias are rewritten.
 
 ```bash
 sshnav connect prod-api

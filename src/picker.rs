@@ -1,4 +1,6 @@
 use crate::inventory::{Host, Inventory};
+use crate::query::{self, HostQuery};
+use crate::reachability::{self, ReachabilityCache};
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use crossterm::execute;
@@ -15,9 +17,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 use std::collections::HashMap;
 use std::io;
-use std::net::{TcpStream, ToSocketAddrs};
-use std::path::Path;
-use std::sync::mpsc::{self, Receiver};
+use std::path::{Path, PathBuf};
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
 
@@ -77,6 +78,9 @@ pub fn select_host(
                     return Ok(Some(PickerAction::Duplicate(alias.to_string())));
                 }
             }
+            KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                app.refresh_reachability();
+            }
             KeyCode::Up => app.previous(),
             KeyCode::Down => app.next(),
             KeyCode::Backspace => app.backspace(),
@@ -86,17 +90,28 @@ pub fn select_host(
     }
 }
 
-pub fn rank_hosts<'a>(hosts: &'a [Host], query: &str) -> Vec<(&'a Host, i64)> {
+pub fn rank_hosts<'a>(
+    hosts: &'a [Host],
+    query: &str,
+    reachability: &HashMap<String, String>,
+) -> Vec<(&'a Host, i64)> {
+    rank_hosts_with_query(hosts, &query::parse_query(query), reachability)
+}
+
+pub fn rank_hosts_with_query<'a>(
+    hosts: &'a [Host],
+    query: &HostQuery,
+    reachability: &HashMap<String, String>,
+) -> Vec<(&'a Host, i64)> {
     let matcher = SkimMatcherV2::default();
-    let query = query.trim();
     let mut ranked = Vec::new();
-    for host in hosts {
-        if query.is_empty() {
+    for host in query::filter_hosts(hosts, query, reachability) {
+        if query.text.trim().is_empty() {
             ranked.push((host, 0));
             continue;
         }
         let haystack = searchable_text(host);
-        if let Some(score) = matcher.fuzzy_match(&haystack, query) {
+        if let Some(score) = matcher.fuzzy_match(&haystack, &query.text) {
             ranked.push((host, score));
         }
     }
@@ -145,33 +160,30 @@ struct PickerApp<'a> {
     ranked: Vec<(&'a Host, i64)>,
     state: ListState,
     db_path: String,
+    cache_path: PathBuf,
+    cache: ReachabilityCache,
     reachability: HashMap<String, String>,
+    reachability_tx: Sender<(String, String)>,
     reachability_rx: Receiver<(String, String)>,
 }
 
 impl<'a> PickerApp<'a> {
     fn new(inventory: &'a Inventory, query: String, db_path: &Path) -> Self {
+        let cache_path = reachability::cache_path(db_path);
+        let cache = ReachabilityCache::load(&cache_path);
         let (reachability_tx, reachability_rx) = mpsc::channel();
-        let mut reachability = HashMap::new();
-        for host in &inventory.hosts {
-            let alias = host.alias.clone();
-            let hostname = host.hostname.clone();
-            let port = host.port.unwrap_or(22);
-            reachability.insert(alias.clone(), "checking".to_string());
-            let tx = reachability_tx.clone();
-            thread::spawn(move || {
-                let status = reachability_summary(&hostname, port);
-                let _ = tx.send((alias, status));
-            });
-        }
-
+        let reachability =
+            spawn_probes(inventory.hosts.as_slice(), &cache, &reachability_tx, false);
         let mut app = Self {
             hosts: &inventory.hosts,
             query,
             ranked: Vec::new(),
             state: ListState::default(),
             db_path: db_path.display().to_string(),
+            cache_path,
+            cache,
             reachability,
+            reachability_tx,
             reachability_rx,
         };
         app.refresh();
@@ -220,7 +232,23 @@ impl<'a> PickerApp<'a> {
     }
 
     fn refresh(&mut self) {
-        self.ranked = rank_hosts(self.hosts, &self.query);
+        self.ranked = rank_hosts(self.hosts, &self.query, &self.reachability);
+        if self.ranked.is_empty() {
+            self.state.select(None);
+        } else {
+            self.state.select(Some(0));
+        }
+    }
+
+    fn refresh_keeping_selection(&mut self) {
+        let selected = self.selected_alias().map(str::to_owned);
+        self.ranked = rank_hosts(self.hosts, &self.query, &self.reachability);
+        if let Some(alias) = selected
+            && let Some(idx) = self.ranked.iter().position(|(host, _)| host.alias == alias)
+        {
+            self.state.select(Some(idx));
+            return;
+        }
         if self.ranked.is_empty() {
             self.state.select(None);
         } else {
@@ -229,8 +257,27 @@ impl<'a> PickerApp<'a> {
     }
 
     fn drain_reachability(&mut self) {
+        let mut changed = false;
+        let now = reachability::now_unix();
         while let Ok((alias, status)) = self.reachability_rx.try_recv() {
+            if let Some(host) = self.hosts.iter().find(|host| host.alias == alias) {
+                self.cache.upsert(host, &status, now);
+            }
             self.reachability.insert(alias, status);
+            changed = true;
+        }
+        if changed {
+            let _ = self.cache.save(&self.cache_path);
+            if query::parse_query(&self.query).uses_reachability() {
+                self.refresh_keeping_selection();
+            }
+        }
+    }
+
+    fn refresh_reachability(&mut self) {
+        self.reachability = spawn_probes(self.hosts, &self.cache, &self.reachability_tx, true);
+        if query::parse_query(&self.query).uses_reachability() {
+            self.refresh_keeping_selection();
         }
     }
 
@@ -240,6 +287,47 @@ impl<'a> PickerApp<'a> {
             .cloned()
             .unwrap_or_else(|| "checking".to_string())
     }
+}
+
+fn spawn_probes(
+    hosts: &[Host],
+    cache: &ReachabilityCache,
+    tx: &Sender<(String, String)>,
+    force: bool,
+) -> HashMap<String, String> {
+    let now = reachability::now_unix();
+    let offline_groups = if force {
+        Default::default()
+    } else {
+        cache.offline_groups(hosts, now)
+    };
+    let mut reachability = HashMap::new();
+    for host in hosts {
+        if !force {
+            if let Some(status) = cache.fresh_status(host, now) {
+                reachability.insert(host.alias.clone(), status.to_string());
+                continue;
+            }
+            if host
+                .group
+                .as_ref()
+                .is_some_and(|group| offline_groups.contains(group))
+            {
+                reachability.insert(host.alias.clone(), "unreachable".to_string());
+                continue;
+            }
+        }
+        reachability.insert(host.alias.clone(), "checking".to_string());
+        let alias = host.alias.clone();
+        let hostname = host.hostname.clone();
+        let port = host.port.unwrap_or(22);
+        let tx = tx.clone();
+        thread::spawn(move || {
+            let status = reachability::probe(&hostname, port);
+            let _ = tx.send((alias, status));
+        });
+    }
+    reachability
 }
 
 fn draw(frame: &mut ratatui::Frame<'_>, area: Rect, app: &mut PickerApp<'_>) {
@@ -265,13 +353,17 @@ fn draw(frame: &mut ratatui::Frame<'_>, area: Rect, app: &mut PickerApp<'_>) {
 
     let input = Paragraph::new(if app.query.is_empty() {
         Line::from(Span::styled(
-            "filter hosts...",
+            "filter hosts...  g:group  t:tag  u:user  unreachable:",
             Style::default().add_modifier(Modifier::DIM),
         ))
     } else {
         Line::from(app.query.clone())
     })
-    .block(Block::default().title("Filter").borders(Borders::ALL));
+    .block(
+        Block::default()
+            .title("Filter  g: t: u: unreachable:")
+            .borders(Borders::ALL),
+    );
     frame.render_widget(input, chunks[1]);
 
     let body = Layout::default()
@@ -321,7 +413,7 @@ fn draw(frame: &mut ratatui::Frame<'_>, area: Rect, app: &mut PickerApp<'_>) {
     );
 
     let footer = Paragraph::new(format!(
-        "{} host{}  Enter connect  Ctrl-A add  Ctrl-E edit  Ctrl-D duplicate  arrows move  Esc quit",
+        "{} host{}  Enter connect  Ctrl-A add  Ctrl-E edit  Ctrl-D duplicate  Ctrl-R refresh  Esc quit",
         app.hosts.len(),
         if app.hosts.len() == 1 { "" } else { "s" }
     ))
@@ -474,19 +566,6 @@ fn auth_summary(host: &Host) -> String {
     }
 }
 
-fn reachability_summary(hostname: &str, port: u16) -> String {
-    let Ok(mut addrs) = (hostname, port).to_socket_addrs() else {
-        return "unknown".to_string();
-    };
-    let Some(addr) = addrs.next() else {
-        return "unknown".to_string();
-    };
-    match TcpStream::connect_timeout(&addr, Duration::from_millis(250)) {
-        Ok(_) => "reachable".to_string(),
-        Err(_) => "unreachable".to_string(),
-    }
-}
-
 fn searchable_text(host: &Host) -> String {
     [
         Some(host.alias.as_str()),
@@ -541,10 +620,43 @@ mod tests {
         let staging = Host::new("staging".into(), "stage.example.com".into());
         let hosts = vec![prod, staging];
 
-        assert_eq!(rank_hosts(&hosts, "database")[0].0.alias, "prod-db");
-        assert_eq!(rank_hosts(&hosts, "stage")[0].0.alias, "staging");
-        assert_eq!(rank_hosts(&hosts, "ubuntu")[0].0.alias, "prod-db");
-        assert_eq!(rank_hosts(&hosts, "work")[0].0.alias, "prod-db");
+        let none = HashMap::new();
+        assert_eq!(rank_hosts(&hosts, "database", &none)[0].0.alias, "prod-db");
+        assert_eq!(rank_hosts(&hosts, "stage", &none)[0].0.alias, "staging");
+        assert_eq!(rank_hosts(&hosts, "ubuntu", &none)[0].0.alias, "prod-db");
+        assert_eq!(rank_hosts(&hosts, "work", &none)[0].0.alias, "prod-db");
+        assert_eq!(rank_hosts(&hosts, "g:prod", &none)[0].0.alias, "prod-db");
+        assert_eq!(
+            rank_hosts(&hosts, "t:database", &none)[0].0.alias,
+            "prod-db"
+        );
+        assert_eq!(rank_hosts(&hosts, "u:ubuntu", &none)[0].0.alias, "prod-db");
+        assert!(rank_hosts(&hosts, "g:missing", &none).is_empty());
+    }
+
+    #[test]
+    fn structured_unreachable_filter_uses_reachability_map() {
+        let mut prod = Host::new("prod-db".into(), "10.0.0.10".into());
+        prod.user = Some("ubuntu".into());
+        let mut staging = Host::new("staging".into(), "stage.example.com".into());
+        staging.user = Some("ubuntu".into());
+        let hosts = vec![prod, staging];
+        let reachability = HashMap::from([
+            ("prod-db".into(), "unreachable".into()),
+            ("staging".into(), "reachable".into()),
+        ]);
+
+        assert_eq!(
+            rank_hosts(&hosts, "unreachable:", &reachability)
+                .iter()
+                .map(|(host, _)| host.alias.as_str())
+                .collect::<Vec<_>>(),
+            vec!["prod-db"]
+        );
+        assert_eq!(
+            rank_hosts(&hosts, "reachable:", &reachability)[0].0.alias,
+            "staging"
+        );
     }
 
     #[test]

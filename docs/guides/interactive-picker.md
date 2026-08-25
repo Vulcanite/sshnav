@@ -16,7 +16,19 @@ sshnav pick production
 
 Search covers aliases, display names, groups, hostnames, users, and tags. Results are fuzzy-ranked and update as you type.
 
-The details panel shows connection metadata, authentication mode, proxy jump, and a background TCP reachability summary. “Reachable” means the host accepted a TCP connection on its SSH port; it does not prove authentication will succeed.
+Structured prefixes narrow the list before fuzzy ranking:
+
+| Prefix | Meaning |
+| --- | --- |
+| `g:prod` or `group:prod` | Group contains `prod` |
+| `t:db` or `tag:db` | A tag contains `db` |
+| `u:ubuntu` or `user:ubuntu` | User contains `ubuntu` |
+| `unreachable:` | Confirmed TCP-unreachable hosts |
+| `reachable:` | Confirmed TCP-reachable hosts |
+
+Combine them with free text, for example `g:prod t:db api`.
+
+The details panel shows connection metadata, authentication mode, proxy jump, and a background TCP reachability summary. “Reachable” means the host accepted a TCP connection on its SSH port; it does not prove authentication will succeed. Fresh results are cached for 90 seconds. Groups that recently looked entirely unreachable are not re-probed until you press <kbd>Ctrl</kbd>+<kbd>R</kbd>.
 
 ## Edit and deletion
 
