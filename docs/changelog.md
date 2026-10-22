@@ -14,6 +14,15 @@ This changelog records user-visible behavior. It is kept unversioned with the re
 - `sshnav host list --group`, `--tag`, and `--user` filters, plus `sshnav host search`.
 - Picker reachability caching, <kbd>Ctrl</kbd>+<kbd>R</kbd> refresh, and skipped probes for groups that recently looked offline.
 
+### Fixed
+
+- Imported `LocalForward` and `RemoteForward` values are passed to `ssh -L`/`-R` in colon form, so OpenSSH no longer rejects local forwards or misreads remote forwards as SOCKS forwards. Hosts already saved are fixed without re-importing.
+- SSH config directives written as `Key=value` or `Key = value` are imported correctly, so `LocalForward=...` becomes a forward and allowlisted options such as `Compression=yes` are kept.
+
+### Security
+
+- Command-executing directives written as `Key=value` (for example `ProxyCommand=...`) are now commented out of the generated include file like their `Key value` forms. Run `sshnav generate` again to rewrite an existing include file.
+
 ## v0.1.3
 
 ### Changed
