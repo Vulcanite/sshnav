@@ -1,4 +1,5 @@
 use crate::inventory::{Host, Inventory};
+use crate::ssh_config::parse_directive;
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
@@ -131,9 +132,7 @@ fn push_directive(out: &mut String, key: &str, value: &str) {
 /// imported directive here would run outside of sshnav's own argv
 /// construction and its `is_safe_option` allowlist (see `runner.rs`).
 fn is_command_executing_directive(option: &str) -> bool {
-    let Some((key, _)) = option.split_once(char::is_whitespace) else {
-        return false;
-    };
+    let (key, _) = parse_directive(option);
     matches!(
         key.to_ascii_lowercase().as_str(),
         "proxycommand"
@@ -224,6 +223,51 @@ mod tests {
                 .matches("# sshnav: skipped imported directive")
                 .count(),
             5
+        );
+    }
+
+    #[test]
+    fn generated_config_skips_key_equals_value_command_directives() {
+        let mut inventory = Inventory::default();
+        let mut host = Host::new("prod-db".into(), "10.0.0.10".into());
+        host.user = Some("ubuntu".into());
+        host.options = vec![
+            "ProxyCommand=sh -c 'x' %h".into(),
+            "ProxyCommand = x".into(),
+            "LocalCommand=x".into(),
+            "PermitLocalCommand=yes".into(),
+            "KnownHostsCommand=x".into(),
+            "RemoteCommand=id".into(),
+            "Match=exec \"x\"".into(),
+            "Match exec \"x\"".into(),
+            "Include=/tmp/evil".into(),
+            "PROXYCOMMAND  =x".into(),
+            "ProxyCommand".into(),
+            "Compression=yes".into(),
+        ];
+        inventory.hosts.push(host);
+
+        let rendered = render(&inventory).unwrap();
+
+        let live: Vec<&str> = rendered
+            .lines()
+            .map(str::trim_start)
+            .filter(|line| !line.starts_with('#'))
+            .collect();
+        for line in &live {
+            let (key, _) = parse_directive(line);
+            assert!(
+                !is_command_executing_directive(line),
+                "live command directive: {line}"
+            );
+            assert!(!key.to_ascii_lowercase().contains("command"), "{line}");
+        }
+        assert!(live.contains(&"Compression=yes"));
+        assert_eq!(
+            rendered
+                .matches("# sshnav: skipped imported directive")
+                .count(),
+            11
         );
     }
 

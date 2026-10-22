@@ -234,17 +234,28 @@ fn set_if_missing<T: Clone>(target: &mut Option<T>, source: &Option<T>) {
 }
 
 fn option_key(option: &str) -> String {
-    option
-        .split_once(char::is_whitespace)
-        .map(|(key, _)| key)
-        .unwrap_or(option)
-        .to_ascii_lowercase()
+    parse_directive(option).0.to_ascii_lowercase()
+}
+
+/// Splits an ssh_config directive into its key and value the way OpenSSH
+/// does: the key ends at the first whitespace or `=`, then any whitespace,
+/// at most one `=`, and further whitespace are skipped. This accepts
+/// `Key value`, `Key=value`, and `Key = value`. Every place that classifies
+/// a directive by its key must use this, or `Key=value` forms slip past
+/// key-based allow/deny checks.
+pub fn parse_directive(line: &str) -> (&str, &str) {
+    let line = line.trim();
+    let key_end = line
+        .find(|ch: char| ch.is_whitespace() || ch == '=')
+        .unwrap_or(line.len());
+    let (key, rest) = line.split_at(key_end);
+    let rest = rest.trim_start();
+    let rest = rest.strip_prefix('=').unwrap_or(rest).trim_start();
+    (key, rest.trim_end())
 }
 
 fn split_directive(line: &str) -> Option<(&str, &str)> {
-    let mut parts = line.splitn(2, char::is_whitespace);
-    let key = parts.next()?.trim();
-    let value = parts.next()?.trim();
+    let (key, value) = parse_directive(line);
     if key.is_empty() || value.is_empty() {
         return None;
     }
@@ -334,6 +345,49 @@ Host prod-db
         assert_eq!(host.proxy_jump.as_deref(), Some("bastion"));
         assert_eq!(host.local_forwards, vec!["15432 localhost:5432"]);
         assert_eq!(host.options, vec!["ServerAliveInterval 60"]);
+    }
+
+    #[test]
+    fn parses_directives_like_openssh() {
+        assert_eq!(parse_directive("Key value"), ("Key", "value"));
+        assert_eq!(parse_directive("Key=value"), ("Key", "value"));
+        assert_eq!(parse_directive("Key = value"), ("Key", "value"));
+        assert_eq!(parse_directive("  Key\t=\t a b  "), ("Key", "a b"));
+        assert_eq!(parse_directive("Key==value"), ("Key", "=value"));
+        assert_eq!(
+            parse_directive("ProxyCommand=sh -c 'x' %h"),
+            ("ProxyCommand", "sh -c 'x' %h")
+        );
+        assert_eq!(parse_directive("Key"), ("Key", ""));
+        assert_eq!(parse_directive("Key="), ("Key", ""));
+    }
+
+    #[test]
+    fn imports_key_equals_value_directives() {
+        let imported = parse_with_warnings(
+            r#"
+Host=prod
+  HostName=prod.example.com
+  User = ubuntu
+  LocalForward=15432 localhost:5432
+  RemoteForward = 8080 localhost:80
+  Compression=yes
+  ProxyCommand=sh -c 'x' %h
+"#,
+        )
+        .hosts;
+
+        assert_eq!(imported.len(), 1);
+        let host = &imported[0];
+        assert_eq!(host.alias, "prod");
+        assert_eq!(host.hostname, "prod.example.com");
+        assert_eq!(host.user.as_deref(), Some("ubuntu"));
+        assert_eq!(host.local_forwards, vec!["15432 localhost:5432"]);
+        assert_eq!(host.remote_forwards, vec!["8080 localhost:80"]);
+        assert_eq!(
+            host.options,
+            vec!["Compression yes", "ProxyCommand sh -c 'x' %h"]
+        );
     }
 
     #[test]

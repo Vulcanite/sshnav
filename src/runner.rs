@@ -2,6 +2,7 @@ use crate::diagnostics;
 use crate::inventory::{Host, Inventory};
 use crate::paths::AppPaths;
 use crate::secrets;
+use crate::ssh_config::parse_directive;
 use crate::storage::{SECRET_PRIVATE_KEY, Store};
 use crate::term;
 use anyhow::{Context, Result, bail};
@@ -354,9 +355,10 @@ fn managed_ssh_options() -> [&'static str; 9] {
 }
 
 fn is_safe_option(option: &str) -> bool {
-    let Some((key, _)) = option.split_once(char::is_whitespace) else {
+    let (key, value) = parse_directive(option);
+    if value.is_empty() {
         return false;
-    };
+    }
     matches!(
         key.to_ascii_lowercase().as_str(),
         "addressfamily"
@@ -564,6 +566,26 @@ mod tests {
         );
         assert!(argv.windows(2).any(|pair| pair == ["-D", "1080"]));
         assert!(argv.windows(2).any(|pair| pair == ["-D", "127.0.0.1:1081"]));
+    }
+
+    #[test]
+    fn safe_option_check_accepts_key_equals_value_forms() {
+        assert!(is_safe_option("Compression yes"));
+        assert!(is_safe_option("Compression=yes"));
+        assert!(is_safe_option("Compression = yes"));
+        assert!(!is_safe_option("Compression"));
+        assert!(!is_safe_option("Compression="));
+        assert!(!is_safe_option("ProxyCommand=sh -c 'x' %h"));
+        assert!(!is_safe_option("Compression;ProxyCommand=x"));
+
+        let mut host = Host::new("prod".into(), "10.0.0.10".into());
+        host.options = vec!["Compression=yes".into(), "ProxyCommand=x".into()];
+        let argv = render_ssh_argv(&host, None, None);
+        assert!(
+            argv.windows(2)
+                .any(|pair| pair == ["-o", "Compression=yes"])
+        );
+        assert!(!argv.iter().any(|arg| arg.contains("ProxyCommand")));
     }
 
     #[test]
