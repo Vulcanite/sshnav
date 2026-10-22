@@ -19,7 +19,7 @@ SSH, SCP, and rsync argument vectors are passed directly to `Command`; sshnav ne
 
 Only a constrained allowlist of imported OpenSSH options is forwarded to direct SSH, SCP, and rsync transport commands. sshnav supplies strict host-key settings and uses the user's normal `known_hosts` file.
 
-The optional `sshnav generate` include file is written into the user's real `~/.ssh/config`, so it holds imported options to a separate rule: any directive that can execute a command as a side effect of connecting — `ProxyCommand`, `LocalCommand`, `PermitLocalCommand`, `RemoteCommand`, `KnownHostsCommand`, `Match`, `Include` — is written back only as a comment, never as a live directive, regardless of where the option came from.
+The optional `sshnav generate` include file is written into the user's real `~/.ssh/config`, so it holds imported options to a separate rule: any directive that can execute a command as a side effect of connecting — `ProxyCommand`, `LocalCommand`, `PermitLocalCommand`, `RemoteCommand`, `KnownHostsCommand`, `Match`, `Include` — is written back only as a comment, never as a live directive, regardless of where the option came from. Directive keywords are recognized the way OpenSSH parses them, so `Key value`, `Key=value`, and `Key = value` forms are all caught; imported options are stored in normalized `Key value` form.
 
 ## What encryption does not protect
 

@@ -80,7 +80,7 @@ sshnav doctor [alias]
 
 - Not a general-purpose secrets manager.
 - Not independently security-audited.
-- Assumes a single-user, single-machine trust boundary. OS-keyring-backed encryption does not protect against an attacker who already controls the same OS user account. See [SECURITY.md](SECURITY.md).
+- Assumes a single-user, single-machine trust boundary. Private keys are encrypted with a key kept in an owner-only local `secret.key` file, which does not protect against an attacker who already controls the same OS user account. See [SECURITY.md](SECURITY.md).
 - Does not store SSH passwords. Password auth goes through OpenSSH's normal interactive prompt.
 
 ## No Telemetry
@@ -123,3 +123,5 @@ Licensed under the terms in [LICENSE](LICENSE).
 ## AI-assisted development
 
 This project is developed with assistance from [GPT-5.6 Sol](https://developers.openai.com/api/docs/models/gpt-5.6-sol), using OpenAI Codex as the coding harness. Codex assists with implementation, testing, review, documentation, and release engineering; project direction, final decisions, and responsibility remain with the maintainer.
+
+PR #2 (host rename, structured filters, search, and reachability caching) was written by the Cursor agent.
