@@ -128,6 +128,19 @@ fn transfer_alias(
     Ok(run_prepared(&prepared)?.code().unwrap_or(1))
 }
 
+/// Forwards are stored in ssh_config syntax (`15432 localhost:5432`), which
+/// `generator.rs` writes back as `LocalForward`/`RemoteForward` directives.
+/// The `-L`/`-R` command-line flags need the colon-joined form instead
+/// (`15432:localhost:5432`), so convert exactly-two-token values here.
+/// Values already in colon form pass through unchanged.
+fn forward_argv_value(forward: &str) -> String {
+    let mut tokens = forward.split_whitespace();
+    match (tokens.next(), tokens.next(), tokens.next()) {
+        (Some(listen), Some(target), None) => format!("{listen}:{target}"),
+        _ => forward.to_string(),
+    }
+}
+
 fn should_reconnect(exit_code: i32, enabled: bool, active_session: bool, retries: u8) -> bool {
     exit_code == 255 && enabled && active_session && retries < 3
 }
@@ -154,11 +167,11 @@ pub fn render_ssh_argv(
     }
     for forward in &host.local_forwards {
         argv.push("-L".to_string());
-        argv.push(forward.clone());
+        argv.push(forward_argv_value(forward));
     }
     for forward in &host.remote_forwards {
         argv.push("-R".to_string());
-        argv.push(forward.clone());
+        argv.push(forward_argv_value(forward));
     }
     for forward in &host.dynamic_forwards {
         argv.push("-D".to_string());
@@ -509,7 +522,7 @@ mod tests {
                 "-J",
                 "bastion",
                 "-L",
-                "15432 localhost:5432",
+                "15432:localhost:5432",
                 "-o"
             ]
         );
@@ -523,6 +536,34 @@ mod tests {
         );
         assert!(!argv.iter().any(|arg| arg == "ServerAliveInterval=60"));
         assert_eq!(argv.last().unwrap(), "ubuntu@10.0.0.10");
+    }
+
+    #[test]
+    fn converts_config_syntax_forwards_for_command_line_flags() {
+        let mut host = Host::new("prod".into(), "10.0.0.10".into());
+        host.local_forwards = vec![
+            "[::1]:15432 localhost:5432".into(),
+            "15433:localhost:5433".into(),
+        ];
+        host.remote_forwards = vec!["8080 localhost:80".into()];
+        host.dynamic_forwards = vec!["1080".into(), "127.0.0.1:1081".into()];
+
+        let argv = render_ssh_argv(&host, None, None);
+
+        assert!(
+            argv.windows(2)
+                .any(|pair| pair == ["-L", "[::1]:15432:localhost:5432"])
+        );
+        assert!(
+            argv.windows(2)
+                .any(|pair| pair == ["-L", "15433:localhost:5433"])
+        );
+        assert!(
+            argv.windows(2)
+                .any(|pair| pair == ["-R", "8080:localhost:80"])
+        );
+        assert!(argv.windows(2).any(|pair| pair == ["-D", "1080"]));
+        assert!(argv.windows(2).any(|pair| pair == ["-D", "127.0.0.1:1081"]));
     }
 
     #[test]
