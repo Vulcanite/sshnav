@@ -6,6 +6,8 @@
 
 `sshnav` is a fast local SSH inventory navigator and launcher for Linux and macOS terminals.
 
+Read [the story behind this project](https://amishtp.tech/blog/sshnav).
+
 ## Quickstart
 
 Build or install from source:
