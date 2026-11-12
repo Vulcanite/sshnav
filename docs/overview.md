@@ -18,6 +18,8 @@ Current release: <code>v{packageJson.version}</code>
 
 sshnav is a local SSH inventory, searchable terminal picker, connection launcher, and file-transfer frontend. It stores the details that are easy to forget—aliases, users, ports, jump routes, tags, forwards, options, and identity metadata—then launches native `ssh`, `scp`, or optional `rsync` directly.
 
+Read [the story behind this project](https://amishtp.tech/blog/sshnav).
+
 ## What sshnav owns
 
 - A SQLite inventory of hosts and templates.
